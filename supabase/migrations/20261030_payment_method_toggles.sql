@@ -1,0 +1,4 @@
+ALTER TABLE store_settings
+  ADD COLUMN IF NOT EXISTS easypaisa_enabled BOOLEAN NOT NULL DEFAULT true,
+  ADD COLUMN IF NOT EXISTS jazzcash_enabled BOOLEAN NOT NULL DEFAULT true,
+  ADD COLUMN IF NOT EXISTS bank_transfer_enabled BOOLEAN NOT NULL DEFAULT true;

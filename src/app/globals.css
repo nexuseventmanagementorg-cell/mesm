@@ -1,0 +1,425 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #1A0A06;
+  --foreground: #F8F2E9;
+  --card: #28100B;
+  --card-foreground: #F8F2E9;
+  --primary: #7A2A13;
+  --primary-foreground: #F8F2E9;
+  --secondary: #35140D;
+  --secondary-foreground: #F8F2E9;
+  --muted: #482016;
+  --muted-foreground: #D2BDB2;
+  --accent: #C49A50;
+  --accent-foreground: #F8F2E9;
+  --border: rgba(230, 201, 143, 0.22);
+  --ring: #C49A50;
+}
+
+body {
+  color: var(--foreground);
+  background-color: var(--background);
+  font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.font-signature {
+  font-family: "Segoe Script", "Brush Script MT", "Apple Chancery", cursive;
+  font-style: italic;
+}
+
+.hero-brand-mark::after {
+  position: absolute;
+  inset: -4px;
+  border: 1px solid rgba(230, 201, 143, 0.55);
+  border-radius: 0.9rem;
+  content: "";
+  animation: hero-brand-glow 3s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.hero-brand-logo {
+  animation: hero-brand-float 4s ease-in-out infinite;
+}
+
+.nav-logo-float {
+  animation: nav-logo-float 4.5s ease-in-out infinite;
+}
+
+.brand-story-image {
+  animation: brand-story-zoom 8s ease-in-out infinite;
+  will-change: transform;
+}
+
+.editorial-feature-float {
+  animation: editorial-feature-float 5s ease-in-out infinite;
+  will-change: transform;
+}
+
+.story-reading-word {
+  background-color: transparent;
+}
+
+.story-reading-active .story-reading-word {
+  animation: story-reading-highlight 0.8s ease-out both;
+}
+
+.hero-tagline-word {
+  display: inline-block;
+  animation: hero-tagline-word-pop 3.6s ease-in-out infinite;
+}
+
+.hero-tagline-word:nth-of-type(2) {
+  animation-delay: 0.12s;
+}
+
+.hero-tagline-word:nth-of-type(3) {
+  animation-delay: 0.24s;
+}
+
+.hero-tagline-word:nth-of-type(4) {
+  animation-delay: 0.36s;
+}
+
+.hero-tagline-word:nth-of-type(5) {
+  animation-delay: 0.48s;
+}
+
+.hero-tagline-word:nth-of-type(6) {
+  animation-delay: 0.6s;
+}
+
+.home-magical-word {
+  display: inline-block;
+  line-height: 1.35;
+  animation: home-magical-word-pop 4.8s ease-in-out infinite;
+}
+
+.hero-title-lightning {
+  animation: hero-title-lightning 2.4s ease-in-out infinite;
+}
+
+.shop-filter-lightning {
+  animation: hero-title-lightning 3.2s ease-in-out infinite;
+}
+
+h1:not(.hero-headline) {
+  animation: wizard-title-glow 3.2s ease-in-out infinite;
+}
+
+.hero-title-shine {
+  position: relative;
+  display: inline-block;
+  line-height: 1.25;
+  padding-block: 0.06em 0.02em;
+  color: #E6C98F;
+  background: linear-gradient(
+    110deg,
+    #E6C98F 0%,
+    #E6C98F 38%,
+    #FFF8E8 49%,
+    #FFFFFF 52%,
+    #E6C98F 64%,
+    #E6C98F 100%
+  );
+  background-size: 220% 100%;
+  background-position: 100% 0;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: hero-title-shine 3.2s ease-in-out infinite;
+}
+
+.hero-title-shine::after {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: linear-gradient(
+    108deg,
+    transparent 38%,
+    rgba(255, 248, 232, 0.18) 44%,
+    #FFFFFF 49%,
+    #FFF8E8 51%,
+    rgba(255, 248, 232, 0.2) 57%,
+    transparent 63%
+  );
+  background-size: 260% 100%;
+  background-position: 100% 0;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  content: attr(data-glare);
+  pointer-events: none;
+  text-shadow: 0 0 12px rgba(255, 248, 232, 0.7);
+  animation: hero-title-glare 3.2s ease-in-out infinite;
+}
+
+.logo-image-zoom {
+  scale: 1.2;
+}
+
+@keyframes hero-brand-glow {
+  0%, 100% {
+    opacity: 0.35;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes hero-brand-float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes nav-logo-float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes brand-story-zoom {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.09);
+  }
+}
+
+@keyframes editorial-feature-float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes story-reading-highlight {
+  0%, 100% {
+    background-color: transparent;
+    text-shadow: none;
+  }
+  35% {
+    background-color: rgba(230, 201, 143, 0.42);
+    text-shadow: 0 0 8px rgba(230, 201, 143, 0.38);
+  }
+}
+
+@keyframes hero-tagline-word-pop {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+    text-shadow: none;
+  }
+  5% {
+    transform: translateY(-0.18em) scale(1.14);
+    text-shadow: 0 0 14px rgba(230, 201, 143, 0.7);
+  }
+  10% {
+    transform: translateY(0.04em) scale(0.97);
+  }
+  15% {
+    transform: translateY(0) scale(1);
+    text-shadow: none;
+  }
+}
+
+@keyframes home-magical-word-pop {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+    text-shadow: none;
+  }
+  5% {
+    transform: translateY(-0.1em) scale(1.09);
+    text-shadow:
+      0 0 5px rgba(255, 248, 232, 0.65),
+      0 0 12px rgba(230, 201, 143, 0.75),
+      0 0 18px rgba(154, 119, 255, 0.3);
+  }
+  10% {
+    transform: translateY(0.02em) scale(0.98);
+  }
+  15% {
+    transform: translateY(0) scale(1);
+    text-shadow: none;
+  }
+}
+
+@keyframes hero-title-lightning {
+  0%, 100% {
+    opacity: 1;
+    text-shadow: 0 0 0 rgba(255, 248, 232, 0);
+  }
+  8%, 12%, 18%, 24% {
+    opacity: 1;
+    text-shadow:
+      0 0 8px rgba(255, 248, 232, 0.9),
+      0 0 20px rgba(230, 201, 143, 0.8);
+  }
+  10%, 20% {
+    opacity: 0.55;
+    text-shadow: none;
+  }
+  14%, 22% {
+    opacity: 0.85;
+    text-shadow: 0 0 12px rgba(255, 248, 232, 0.65);
+  }
+}
+
+@keyframes hero-title-shine {
+  0%, 18% {
+    background-position: 100% 0;
+  }
+  82%, 100% {
+    background-position: 0 0;
+  }
+}
+
+@keyframes hero-title-glare {
+  0%, 24% {
+    background-position: 100% 0;
+    opacity: 0;
+  }
+  32% {
+    opacity: 1;
+  }
+  76%, 100% {
+    background-position: 0 0;
+    opacity: 0;
+  }
+}
+
+@keyframes wizard-title-glow {
+  0%, 100% {
+    text-shadow: 0 0 4px rgba(230, 201, 143, 0.18);
+  }
+  36%, 44% {
+    text-shadow:
+      0 0 5px rgba(255, 248, 232, 0.8),
+      0 0 14px rgba(230, 201, 143, 0.75),
+      0 0 24px rgba(154, 119, 255, 0.35);
+  }
+  40% {
+    text-shadow:
+      0 0 2px rgba(255, 248, 232, 0.45),
+      0 0 8px rgba(230, 201, 143, 0.35);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-brand-mark::after,
+  .hero-brand-logo,
+  .nav-logo-float,
+  .brand-story-image,
+  .editorial-feature-float,
+  .story-reading-word,
+  .hero-tagline-word,
+  .home-magical-word,
+  h1:not(.hero-headline),
+  .hero-title-lightning,
+  .shop-filter-lightning,
+  .hero-title-shine,
+  .hero-title-shine::after {
+    animation: none;
+  }
+}
+
+/* Glassmorphism helpers */
+.glass-panel {
+  background: rgba(40, 16, 11, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(196, 154, 80, 0.28);
+}
+
+.glass-dropdown {
+  background: rgba(40, 16, 11, 0.98);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(196, 154, 80, 0.28);
+  box-shadow: 0 16px 36px -8px rgba(15, 5, 2, 0.48);
+}
+
+.glass-badge {
+  background: rgba(196, 154, 80, 0.14);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(196, 154, 80, 0.34);
+  color: #E6C98F;
+}
+
+/* Custom subtle scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1A0A06;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #68402E;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #C49A50;
+}
+
+.bg-brand-ivory {
+  background-color: #1A0A06;
+}
+
+.bg-brand-warm {
+  background-color: #28100B;
+}
+
+.bg-brand-cream {
+  background-color: #35140D;
+}
+
+.bg-brand-sand {
+  background-color: #482016;
+}
+
+.text-brand-mocha,
+.text-brand-mocha-light,
+.text-brand-mocha-dark {
+  color: #F8F2E9;
+}
+
+.text-brand-mocha-muted {
+  color: #D2BDB2;
+}
+
+.text-brand-gold-dark {
+  color: #E6C98F;
+}
+
+[class*="border-brand-mocha"] {
+  border-color: rgba(230, 201, 143, 0.22);
+}
+
+.bg-white {
+  background-color: #28100B;
+}
+
+::selection {
+  color: #1A0A06;
+  background: #E6C98F;
+}
