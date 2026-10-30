@@ -29,14 +29,16 @@ If it stops loading again, first check whether the VS Code task is still running
 
 - The user has intentionally emptied `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` in `.env.local`. Fresh Supabase setup is deferred until the user signs into the new account. Do not attempt to provision or connect a Supabase project yet.
 - `.env.local` is ignored and must never be staged or pushed. `data/store.json` is also ignored and should remain local. `.env.example` contains placeholders, not actual credentials.
-- The repository is on local branch `master` at `9b8e102`. The user confirmed `https://github.com/nexuseventmanagementorg-cell/mesm`; it is configured locally as `origin`, and GitHub's default branch is `main` at `b7d5375`.
-- Local `master` and GitHub `main` have **unrelated Git histories** (no merge base); their committed tree snapshots differ in 181 files. Do not force-push or overwrite `main`. Ask the user whether to integrate the local snapshot into `main` while preserving GitHub's existing commits, or prepare a separate review branch based on `main`.
-- The worktree contains extensive pending tracked and untracked changes, including the requested product images and `public/uploads/images`. Do not discard them. Do not include anything in `public/uploads/payment-proofs`.
-- The hero file `public/images/kashif bhai/MESM.mp4` is about 147.6 MB, exceeding GitHub's 100 MB per-file normal Git limit. The user approved Git LFS; Git LFS 3.8.1 is installed, and the untracked `.gitattributes` declares `*.mp4` for LFS. There are three MP4s in the public asset tree, about 358 MB total.
-- The user verified that the three Supabase keys are empty and approved Git LFS, and provided the GitHub URL. `npm.cmd test` passed all 11 tests. No commit or push has been made yet because the local branch and GitHub `main` have unrelated histories; get the user's choice on safe integration before changing branch history.
+- The GitHub repo is `https://github.com/nexuseventmanagementorg-cell/mesm`, configured as `origin`. The latest code and media were pushed to `main` in commit `cd50c0b`; local branch `main` now tracks `origin/main`. The existing GitHub history is preserved, and no force-push was used.
+- Local `master` has an unrelated legacy history and is intentionally **not** part of the pushed `main` ancestry. Do not push or merge local `master`: an old local `.env.example` commit contained non-placeholder admin credential values. The published tree removes those values. If those old values were ever active, rotate the admin password and session secret.
+- Fetched and checked every commit reachable from GitHub branches/tags for non-placeholder admin values in environment templates. None were present in GitHub history; the old values are confined to the unpushed local `master` history. No GitHub history rewrite is needed.
+- The requested storefront images, local public product-upload images, and videos were included. Three MP4s are stored with Git LFS (about 358 MB total); LFS object integrity passed and the push succeeded. `public/uploads/payment-proofs` was excluded.
+- The user has intentionally emptied the three Supabase variables in `.env.local`. Fresh Supabase setup is deferred until the user signs into the new account. Do not attempt to provision or connect a Supabase project yet.
+- `.env.local` and `data/store.json` are ignored and were not pushed. `.env.example` contains only placeholders/blank admin values.
+- `npm.cmd test` passed all 11 tests; `npx.cmd tsc --noEmit` passed. The root page and Next.js assets were also verified locally at http://localhost:3000.
 - `src/components/layout/HeroVideo.tsx` references `/images/kashif%20bhai/MESM.mp4`; the named file exists at that path. The current localhost page has been verified to load.
 
-Next action: obtain the user's GitHub repository URL and confirmation to use Git LFS for MP4s, then carefully review/stage the intended code and public assets while excluding `.env.local`, `data/store.json`, and payment proofs. After the push, arrange fresh Supabase setup separately with the user.
+Next action: when the user is ready, help create a fresh Supabase project and configure local environment variables privately. Never ask them to paste service keys into chat; guide them to enter those in `.env.local` and deployment secrets.
 
 ## Important existing workspace state
 
@@ -59,4 +61,4 @@ Next action: obtain the user's GitHub repository URL and confirmation to use Git
 
 ## Where to start next
 
-There is no unfinished code change from this support task. First confirm the user is in this same workspace and that http://localhost:3000 still opens. Then ask what they want to work on next; do not infer a new feature from this handoff. If they report the loading issue again, verify the dev task and static asset responses before editing app code.
+The GitHub push is complete. Confirm the user is in this same workspace and on local `main`. When they are ready, set up Supabase fresh with their new account; otherwise ask what they want to work on next. If localhost fails again, verify the dev task and static asset responses before editing app code.
