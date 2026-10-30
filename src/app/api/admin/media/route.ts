@@ -86,13 +86,17 @@ export async function POST(request: Request) {
       );
     }
 
-    const supabase = isSupabaseConfigured() ? getSupabaseServer() : null;
-    if (isSupabaseConfigured() && !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    if (
+      isSupabaseConfigured() &&
+      !process.env.SUPABASE_SERVICE_ROLE_KEY &&
+      !process.env.SUPABASE_SECRET_KEY
+    ) {
       return NextResponse.json(
-        { error: "Set SUPABASE_SERVICE_ROLE_KEY to enable secure media uploads." },
+        { error: "Set SUPABASE_SERVICE_ROLE_KEY or SUPABASE_SECRET_KEY to enable secure media uploads." },
         { status: 503 }
       );
     }
+    const supabase = isSupabaseConfigured() ? getSupabaseServer() : null;
     if (!supabase && process.env.NODE_ENV !== "development") {
       return NextResponse.json(
         { error: "Configure Supabase Storage before uploading media in production." },

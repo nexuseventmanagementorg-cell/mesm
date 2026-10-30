@@ -181,9 +181,7 @@ CREATE POLICY "Public read published categories" ON categories
 CREATE POLICY "Public read published products" ON products
   FOR SELECT TO anon, authenticated USING (status = 'published');
 
--- Public can insert new orders during checkout
-CREATE POLICY "Public create orders" ON orders
-  FOR INSERT TO anon, authenticated WITH CHECK (true);
+DROP POLICY IF EXISTS "Public create orders" ON orders;
 
 -- Public can read verified reviews
 CREATE POLICY "Public read approved reviews" ON reviews

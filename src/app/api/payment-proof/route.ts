@@ -48,6 +48,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "The uploaded file is not a valid image." }, { status: 400 });
     }
 
+    if (
+      isSupabaseConfigured() &&
+      !process.env.SUPABASE_SERVICE_ROLE_KEY &&
+      !process.env.SUPABASE_SECRET_KEY
+    ) {
+      return NextResponse.json(
+        { error: "Secure receipt storage requires a Supabase server key." },
+        { status: 503 }
+      );
+    }
     const supabase = isSupabaseConfigured() ? getSupabaseServer() : null;
     if (isSupabaseConfigured() && !supabase) {
       return NextResponse.json(

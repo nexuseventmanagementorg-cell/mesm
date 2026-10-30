@@ -1,6 +1,9 @@
 import { MetadataRoute } from "next";
 import { getProducts, getCategories } from "@/lib/db";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://meemsgems.com";
   const { products } = await getProducts({ limit: 1000, status: "published" });

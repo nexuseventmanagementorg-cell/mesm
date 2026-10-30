@@ -94,7 +94,7 @@
 | **Styling** | Tailwind CSS |
 | **Icons** | Lucide React |
 | **QR Code Engine** | `qrcode` (PNG data URLs & SVG strings) |
-| **Database & Auth** | Supabase (PostgreSQL) + Persistent local repository fallback engine |
+| **Database & Auth** | Supabase PostgreSQL in production; local JSON in development |
 | **Validation** | Zod & TypeScript domain models |
 | **Testing** | Node.js native test runner (`node --test`) |
 | **Deployment Target** | Vercel |
@@ -129,7 +129,7 @@ ADMIN_SESSION_SECRET=generate-a-random-secret-at-least-32-characters
 
 Generate a random session secret with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`.
 
-For local development without Supabase, the app uses development seed content stored in the ignored `data/store.json` file. Replace its sample catalogue and configure store contact/payment details before launch. Supabase credentials are required for a shared, persistent production store; never expose `SUPABASE_SERVICE_ROLE_KEY` to browser code.
+Local development uses the ignored `data/store.json` file. Production uses Supabase Postgres and Supabase Storage exclusively; it does not fall back to the serverless filesystem. Configure a project URL and server-only Supabase key in the production environment. Never expose `SUPABASE_SERVICE_ROLE_KEY` or `SUPABASE_SECRET_KEY` to browser code.
 
 ### 3. Run Development Server
 ```bash
@@ -164,10 +164,12 @@ Verifies:
 
 ## 🗄️ Supabase Database Setup & Schema
 
-When connecting to Supabase:
+For a new, empty Supabase project:
 1. Create a project at [supabase.com](https://supabase.com).
 2. Open the **SQL Editor** in your Supabase dashboard.
-3. Open `supabase/schema.sql` in this project, copy its entire contents, and click **Run**. For an existing database, run the applicable SQL files in `supabase/migrations/`, including the review moderation and store brand copy migrations.
+3. Apply `supabase/schema.sql` once to create the initial tables, indexes, policies, and `meems-gems-media` bucket.
+
+For an existing project, **do not rerun the initial schema blindly**. Verify the current schema and apply only pending files from `supabase/migrations/` in order. Order placement and inventory transitions require `20261031_transactional_store_operations.sql`.
 4. The script creates:
    - `store_settings`
    - `categories`
@@ -175,7 +177,19 @@ When connecting to Supabase:
    - `orders`
    - `reviews`
    - Indexes and Row-Level Security (RLS) policies.
-5. In your project settings, copy your **Project URL**, **Anon Key**, and **Service Role Key**, and add them to your Vercel Environment Variables or `.env.local`.
+5. In the Supabase project settings, configure the project URL and a server-only service-role or secret key in Vercel. Do not paste keys into source code, chat, or browser-visible variables.
+
+Production data is not automatically copied from `data/store.json`. Back up the JSON and all referenced media, check for conflicts, then import records and upload images to Supabase Storage using a reviewed, non-overwriting migration.
+
+The reviewed MESM snapshot can be preflighted without writes:
+```bash
+node scripts/migrate-local-store-to-supabase.mjs
+```
+After applying the pending transactional migration, rotating any exposed Supabase key, and reviewing the dry-run target/counts, import only by explicitly confirming the project reference:
+```bash
+node scripts/migrate-local-store-to-supabase.mjs --apply --confirm-project-ref=YOUR_PROJECT_REF
+```
+The importer refuses non-empty product/settings/order/review tables, mismatched categories, and conflicting Storage objects. Its SQL transaction only updates verified category image references and inserts into empty product/settings tables; it never replaces existing product or settings rows.
 
 ---
 
@@ -188,9 +202,9 @@ When connecting to Supabase:
    - `ADMIN_USERNAME`: your administrator username
    - `ADMIN_PASSWORD`: Your private admin password
    - `ADMIN_SESSION_SECRET`: A long random secret string
-   - *(Optional)* `NEXT_PUBLIC_SUPABASE_URL`
-   - *(Optional)* `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   - *(Optional)* `SUPABASE_SERVICE_ROLE_KEY`
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `SUPABASE_SERVICE_ROLE_KEY` or `SUPABASE_SECRET_KEY` (server-only)
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` only if a feature explicitly needs a browser-safe public client
 4. Click **Deploy** and review the build output before directing customers to the store.
 
 ---

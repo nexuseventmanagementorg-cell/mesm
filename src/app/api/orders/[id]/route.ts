@@ -9,6 +9,11 @@ import { verifyAdminAuth } from "@/lib/auth";
 
 export async function GET(req: Request, { params }: { params: { id: string } }) {
   try {
+    const isAdmin = await verifyAdminAuth();
+    if (!isAdmin) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     let order = await getOrderById(params.id);
     if (!order) {
       order = await getOrderByNumber(params.id);

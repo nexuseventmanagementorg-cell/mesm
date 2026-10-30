@@ -4,6 +4,8 @@ import {
   Product,
   Category,
   Order,
+  OrderItem,
+  OrderTimelineEvent,
   StoreSettings,
   Review,
   OrderStatus,
@@ -14,7 +16,10 @@ import {
   initialCategories,
   initialSettings,
 } from "./initialData";
-import { isSupabaseConfigured, getSupabaseServer } from "./supabase";
+import {
+  isSupabaseConfigured as hasSupabaseConfiguration,
+  getSupabaseServer,
+} from "./supabase";
 import {
   areVariationSelectionsAvailable,
   hasAvailableVariantSelection,
@@ -29,6 +34,171 @@ interface StoreData {
 }
 
 const DATA_FILE_PATH = path.join(process.cwd(), "data", "store.json");
+
+const isSupabaseConfigured = () =>
+  process.env.NODE_ENV === "production" && hasSupabaseConfiguration();
+
+function getLocalStore(): StoreData {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "Local JSON storage is disabled in production. Configure Supabase Postgres and server credentials."
+    );
+  }
+  return ensureDataFile();
+}
+
+function getRequiredSupabase() {
+  const supabase = getSupabaseServer();
+  if (!supabase) {
+    throw new Error(
+      "Supabase is configured without server access. Set SUPABASE_SERVICE_ROLE_KEY or SUPABASE_SECRET_KEY."
+    );
+  }
+  return supabase;
+}
+
+function mapCategoryRow(row: Record<string, unknown>): Category {
+  return {
+    id: String(row.id),
+    slug: String(row.slug),
+    name: String(row.name),
+    description: String(row.description ?? ""),
+    imageUrl: typeof row.image_url === "string" ? row.image_url : undefined,
+    videoUrl: typeof row.video_url === "string" ? row.video_url : undefined,
+    sortOrder: Number(row.sort_order ?? 0),
+    isPublished: Boolean(row.is_published),
+    createdAt: String(row.created_at ?? new Date().toISOString()),
+  };
+}
+
+function mapProductRow(row: Record<string, unknown>): Product {
+  const category = row.categories as { name?: unknown } | null;
+  return {
+    id: String(row.id),
+    slug: String(row.slug),
+    name: String(row.name),
+    sku: String(row.sku),
+    shortDescription: String(row.short_description ?? ""),
+    description: String(row.description ?? ""),
+    categoryId: String(row.category_id ?? ""),
+    categoryName: typeof category?.name === "string" ? category.name : undefined,
+    tags: Array.isArray(row.tags) ? row.tags.map(String) : [],
+    status: String(row.status ?? "draft") as Product["status"],
+    isFeatured: Boolean(row.is_featured),
+    images: Array.isArray(row.images) ? row.images.map(String) : [],
+    videoUrl: typeof row.video_url === "string" ? row.video_url : undefined,
+    price: Number(row.price ?? 0),
+    compareAtPrice:
+      row.compare_at_price == null ? undefined : Number(row.compare_at_price),
+    costPrice: row.cost_price == null ? undefined : Number(row.cost_price),
+    currency: "PKR",
+    trackInventory: Boolean(row.track_inventory ?? true),
+    stockQuantity: Number(row.stock_quantity ?? 0),
+    lowStockThreshold: Number(row.low_stock_threshold ?? 3),
+    allowBackorders: Boolean(row.allow_backorders),
+    variations: Array.isArray(row.variations)
+      ? row.variations as Product["variations"]
+      : [],
+    attributes: Array.isArray(row.attributes)
+      ? row.attributes as Product["attributes"]
+      : [],
+    createdAt: String(row.created_at ?? new Date().toISOString()),
+    updatedAt: String(row.updated_at ?? new Date().toISOString()),
+    orderCount: Number(row.order_count ?? 0),
+    rating: row.rating == null ? undefined : Number(row.rating),
+    reviewCount: row.review_count == null ? undefined : Number(row.review_count),
+  };
+}
+
+function mapProductToRow(product: Product) {
+  return {
+    id: product.id,
+    slug: product.slug,
+    name: product.name,
+    sku: product.sku,
+    short_description: product.shortDescription,
+    description: product.description,
+    category_id: product.categoryId || null,
+    tags: product.tags,
+    status: product.status,
+    is_featured: product.isFeatured,
+    images: product.images,
+    video_url: product.videoUrl || null,
+    price: product.price,
+    compare_at_price: product.compareAtPrice ?? null,
+    cost_price: product.costPrice ?? null,
+    currency: product.currency,
+    track_inventory: product.trackInventory,
+    stock_quantity: product.stockQuantity,
+    low_stock_threshold: product.lowStockThreshold,
+    allow_backorders: product.allowBackorders,
+    variations: product.variations,
+    attributes: product.attributes,
+    order_count: product.orderCount ?? 0,
+    rating: product.rating ?? 5,
+    review_count: product.reviewCount ?? 0,
+    created_at: product.createdAt,
+    updated_at: product.updatedAt,
+  };
+}
+
+function mapOrderRow(row: Record<string, unknown>): Order {
+  return {
+    id: String(row.id),
+    orderNumber: String(row.order_number),
+    customerName: String(row.customer_name),
+    customerPhone: String(row.customer_phone),
+    customerEmail: typeof row.customer_email === "string" ? row.customer_email : undefined,
+    customerCity: String(row.customer_city),
+    deliveryAddress: String(row.delivery_address),
+    deliveryInstructions:
+      typeof row.delivery_instructions === "string" ? row.delivery_instructions : undefined,
+    giftMessage: typeof row.gift_message === "string" ? row.gift_message : undefined,
+    items: Array.isArray(row.items) ? row.items as OrderItem[] : [],
+    subtotal: Number(row.subtotal ?? 0),
+    deliveryFee: Number(row.delivery_fee ?? 0),
+    discount: Number(row.discount ?? 0),
+    total: Number(row.total ?? 0),
+    orderStatus: String(row.order_status ?? "pending") as Order["orderStatus"],
+    paymentStatus: String(row.payment_status ?? "unpaid") as Order["paymentStatus"],
+    paymentMethod: String(row.payment_method) as Order["paymentMethod"],
+    paymentProofUrl:
+      typeof row.payment_proof_url === "string" ? row.payment_proof_url : undefined,
+    adminNotes: typeof row.admin_notes === "string" ? row.admin_notes : undefined,
+    createdAt: String(row.created_at ?? new Date().toISOString()),
+    updatedAt: String(row.updated_at ?? new Date().toISOString()),
+    timeline: Array.isArray(row.timeline)
+      ? row.timeline as OrderTimelineEvent[]
+      : [],
+  };
+}
+
+function mapOrderToRow(order: Order) {
+  return {
+    id: order.id,
+    order_number: order.orderNumber,
+    customer_name: order.customerName,
+    customer_phone: order.customerPhone,
+    customer_email: order.customerEmail ?? null,
+    customer_city: order.customerCity,
+    delivery_address: order.deliveryAddress,
+    delivery_instructions: order.deliveryInstructions ?? null,
+    gift_message: order.giftMessage ?? null,
+    items: order.items,
+    subtotal: order.subtotal,
+    delivery_fee: order.deliveryFee,
+    discount: order.discount,
+    total: order.total,
+    order_status: order.orderStatus,
+    payment_status: order.paymentStatus,
+    payment_method: order.paymentMethod,
+    payment_proof_url: order.paymentProofUrl ?? null,
+    admin_notes: order.adminNotes ?? null,
+    timeline: order.timeline,
+    created_at: order.createdAt,
+    updated_at: order.updatedAt,
+  };
+}
 
 function mapStoreSettingsRow(row: Record<string, unknown>): StoreSettings {
   return {
@@ -109,15 +279,17 @@ function mapStoreSettingsToRow(settings: StoreSettings) {
 
 function ensureDataFile(): StoreData {
   try {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("Local JSON storage is disabled in production.");
+    }
     const dir = path.dirname(DATA_FILE_PATH);
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
     }
     if (!fs.existsSync(DATA_FILE_PATH)) {
-      const isProduction = process.env.NODE_ENV === "production";
       const initialStore: StoreData = {
         settings: initialSettings,
-        categories: isProduction ? [] : initialCategories,
+        categories: initialCategories,
         products: [],
         orders: [],
         reviews: [],
@@ -172,42 +344,40 @@ function saveDataToFile(data: StoreData) {
 
 export async function getStoreSettings(): Promise<StoreSettings> {
   if (isSupabaseConfigured()) {
-    const supabase = getSupabaseServer();
-    if (supabase) {
-      const { data, error } = await supabase
-        .from("store_settings")
-        .select("*")
-        .limit(1)
-        .single();
-      if (!error && data) {
-        return mapStoreSettingsRow(data);
-      }
+    const { data, error } = await getRequiredSupabase()
+      .from("store_settings")
+      .select("*")
+      .eq("id", "default")
+      .maybeSingle();
+    if (error) {
+      throw new Error(`Unable to load store settings from Supabase: ${error.message}`);
     }
+    return data ? mapStoreSettingsRow(data) : { ...initialSettings, id: "default" };
   }
 
-  const store = ensureDataFile();
+  const store = getLocalStore();
   return store.settings;
 }
 
 export async function updateStoreSettings(
   updated: Partial<StoreSettings>
 ): Promise<StoreSettings> {
-  const store = ensureDataFile();
-  store.settings = { ...store.settings, ...updated };
-  saveDataToFile(store);
-
   if (isSupabaseConfigured()) {
-    const supabase = getSupabaseServer();
-    if (supabase) {
-      const { error } = await supabase
-        .from("store_settings")
-        .upsert(mapStoreSettingsToRow(store.settings), { onConflict: "id" });
-      if (error) {
-        throw new Error(`Unable to save store settings: ${error.message}`);
-      }
+    const settings = { ...(await getStoreSettings()), ...updated };
+    const { data, error } = await getRequiredSupabase()
+      .from("store_settings")
+      .upsert(mapStoreSettingsToRow(settings), { onConflict: "id" })
+      .select("*")
+      .single();
+    if (error) {
+      throw new Error(`Unable to save store settings: ${error.message}`);
     }
+    return mapStoreSettingsRow(data);
   }
 
+  const store = getLocalStore();
+  store.settings = { ...store.settings, ...updated };
+  saveDataToFile(store);
   return store.settings;
 }
 
@@ -219,33 +389,21 @@ export async function getCategories(
   includeUnpublished = false
 ): Promise<Category[]> {
   if (isSupabaseConfigured()) {
-    const supabase = getSupabaseServer();
-    if (supabase) {
-      let query = supabase.from("categories").select("*").order("sort_order", { ascending: true });
-      if (!includeUnpublished) {
-        query = query.eq("is_published", true);
-      }
-      const { data, error } = await query;
-      if (error) {
-        throw new Error(`Unable to load categories: ${error.message}`);
-      }
-      if (data) {
-        return data.map((row) => ({
-          id: String(row.id),
-          slug: String(row.slug),
-          name: String(row.name),
-          description: String(row.description ?? ""),
-          imageUrl: typeof row.image_url === "string" ? row.image_url : undefined,
-          videoUrl: typeof row.video_url === "string" ? row.video_url : undefined,
-          sortOrder: Number(row.sort_order ?? 0),
-          isPublished: Boolean(row.is_published),
-          createdAt: String(row.created_at ?? new Date().toISOString()),
-        }));
-      }
+    let query = getRequiredSupabase()
+      .from("categories")
+      .select("*")
+      .order("sort_order", { ascending: true });
+    if (!includeUnpublished) {
+      query = query.eq("is_published", true);
     }
+    const { data, error } = await query;
+    if (error) {
+      throw new Error(`Unable to load categories from Supabase: ${error.message}`);
+    }
+    return (data || []).map(mapCategoryRow);
   }
 
-  const store = ensureDataFile();
+  const store = getLocalStore();
   let list = store.categories;
   if (!includeUnpublished) {
     list = list.filter((c) => c.isPublished);
@@ -263,7 +421,41 @@ export async function getCategoryBySlug(
 export async function saveCategory(
   category: Partial<Category> & { name: string; slug: string }
 ): Promise<Category> {
-  const store = ensureDataFile();
+  if (isSupabaseConfigured()) {
+    const existing = category.id
+      ? (await getCategories(true)).find((item) => item.id === category.id)
+      : undefined;
+    const savedCategory: Category = {
+      id: category.id || `cat-${Date.now()}`,
+      name: category.name,
+      slug: category.slug,
+      description: category.description ?? existing?.description ?? "",
+      imageUrl: category.imageUrl ?? existing?.imageUrl,
+      videoUrl: category.videoUrl ?? existing?.videoUrl,
+      sortOrder: category.sortOrder ?? existing?.sortOrder ?? (await getCategories(true)).length + 1,
+      isPublished: category.isPublished ?? existing?.isPublished ?? true,
+      createdAt: category.createdAt ?? existing?.createdAt ?? new Date().toISOString(),
+    };
+    const { error } = await getRequiredSupabase()
+      .from("categories")
+      .upsert({
+        id: savedCategory.id,
+        slug: savedCategory.slug,
+        name: savedCategory.name,
+        description: savedCategory.description,
+        image_url: savedCategory.imageUrl ?? null,
+        video_url: savedCategory.videoUrl ?? null,
+        sort_order: savedCategory.sortOrder,
+        is_published: savedCategory.isPublished,
+        created_at: savedCategory.createdAt,
+      }, { onConflict: "id" });
+    if (error) {
+      throw new Error(`Unable to save category: ${error.message}`);
+    }
+    return savedCategory;
+  }
+
+  const store = getLocalStore();
   let savedCategory: Category;
 
   if (category.id) {
@@ -304,32 +496,31 @@ export async function saveCategory(
   }
 
   saveDataToFile(store);
-
-  if (isSupabaseConfigured()) {
-    const supabase = getSupabaseServer();
-    if (supabase) {
-      const { error } = await supabase.from("categories").upsert({
-        id: savedCategory.id,
-        slug: savedCategory.slug,
-        name: savedCategory.name,
-        description: savedCategory.description,
-        image_url: savedCategory.imageUrl || null,
-        video_url: savedCategory.videoUrl || null,
-        sort_order: savedCategory.sortOrder,
-        is_published: savedCategory.isPublished,
-        created_at: savedCategory.createdAt,
-      });
-      if (error) {
-        throw new Error(`Unable to save category: ${error.message}`);
-      }
-    }
-  }
-
   return savedCategory;
 }
 
 export async function deleteCategory(id: string): Promise<boolean> {
-  const store = ensureDataFile();
+  if (isSupabaseConfigured()) {
+    const supabase = getRequiredSupabase();
+    const { data: products, error: productError } = await supabase
+      .from("products")
+      .select("id")
+      .eq("category_id", id)
+      .limit(1);
+    if (productError) {
+      throw new Error(`Unable to check category products: ${productError.message}`);
+    }
+    if (products?.length) {
+      throw new Error("Cannot delete category because products are assigned to it.");
+    }
+    const { error } = await supabase.from("categories").delete().eq("id", id);
+    if (error) {
+      throw new Error(`Unable to delete category: ${error.message}`);
+    }
+    return true;
+  }
+
+  const store = getLocalStore();
   // Check if any product is using this category
   const hasProducts = store.products.some((p) => p.categoryId === id);
   if (hasProducts) {
@@ -338,13 +529,6 @@ export async function deleteCategory(id: string): Promise<boolean> {
 
   store.categories = store.categories.filter((c) => c.id !== id);
   saveDataToFile(store);
-
-  if (isSupabaseConfigured()) {
-    const supabase = getSupabaseServer();
-    if (supabase) {
-      await supabase.from("categories").delete().eq("id", id);
-    }
-  }
 
   return true;
 }
@@ -372,7 +556,22 @@ export interface GetProductsParams {
 export async function getProductCountsByCategory(
   status: "all" | "published" = "published"
 ): Promise<Record<string, number>> {
-  const store = ensureDataFile();
+  if (isSupabaseConfigured()) {
+    let query = getRequiredSupabase().from("products").select("category_id,status");
+    if (status !== "all") query = query.eq("status", "published");
+    const { data, error } = await query;
+    if (error) {
+      throw new Error(`Unable to load product counts: ${error.message}`);
+    }
+    return (data || []).reduce<Record<string, number>>((counts, row) => {
+      if (row.category_id) {
+        counts[row.category_id] = (counts[row.category_id] || 0) + 1;
+      }
+      return counts;
+    }, {});
+  }
+
+  const store = getLocalStore();
   const counts: Record<string, number> = {};
 
   for (const product of store.products) {
@@ -396,7 +595,23 @@ export async function getProducts(params: GetProductsParams = {}): Promise<{
   page: number;
   totalPages: number;
 }> {
-  const store = ensureDataFile();
+  const store = isSupabaseConfigured()
+    ? {
+        settings: initialSettings,
+        categories: await getCategories(true),
+        products: await (async () => {
+          const { data, error } = await getRequiredSupabase()
+            .from("products")
+            .select("*, categories(name)");
+          if (error) {
+            throw new Error(`Unable to load products from Supabase: ${error.message}`);
+          }
+          return (data || []).map((row) => mapProductRow(row));
+        })(),
+        orders: [],
+        reviews: [],
+      }
+    : getLocalStore();
   let list = [...store.products];
 
   // Map categoryName if missing
@@ -497,7 +712,20 @@ export async function getProducts(params: GetProductsParams = {}): Promise<{
 }
 
 export async function getProductBySlug(slug: string): Promise<Product | null> {
-  const store = ensureDataFile();
+  if (isSupabaseConfigured()) {
+    const { data, error } = await getRequiredSupabase()
+      .from("products")
+      .select("*, categories(name)")
+      .eq("slug", slug)
+      .eq("status", "published")
+      .maybeSingle();
+    if (error) {
+      throw new Error(`Unable to load product: ${error.message}`);
+    }
+    return data ? { ...mapProductRow(data), costPrice: undefined } : null;
+  }
+
+  const store = getLocalStore();
   const product = store.products.find((p) => p.slug === slug);
   if (!product || product.status !== "published") return null;
 
@@ -510,7 +738,19 @@ export async function getProductBySlug(slug: string): Promise<Product | null> {
 }
 
 export async function getProductById(id: string): Promise<Product | null> {
-  const store = ensureDataFile();
+  if (isSupabaseConfigured()) {
+    const { data, error } = await getRequiredSupabase()
+      .from("products")
+      .select("*, categories(name)")
+      .eq("id", id)
+      .maybeSingle();
+    if (error) {
+      throw new Error(`Unable to load product: ${error.message}`);
+    }
+    return data ? mapProductRow(data) : null;
+  }
+
+  const store = getLocalStore();
   const product = store.products.find((p) => p.id === id);
   if (!product) return null;
 
@@ -522,7 +762,71 @@ export async function getProductById(id: string): Promise<Product | null> {
 }
 
 export async function saveProduct(productData: Partial<Product>): Promise<Product> {
-  const store = ensureDataFile();
+  if (isSupabaseConfigured()) {
+    const supabase = getRequiredSupabase();
+    const now = new Date().toISOString();
+    let existing: Product | undefined;
+    if (productData.id) {
+      const { data, error } = await supabase
+        .from("products")
+        .select("*, categories(name)")
+        .eq("id", productData.id)
+        .maybeSingle();
+      if (error) {
+        throw new Error(`Unable to load product before saving: ${error.message}`);
+      }
+      if (data) existing = mapProductRow(data);
+    }
+
+    const categories = await getCategories(true);
+    const categoryId =
+      productData.categoryId || existing?.categoryId || categories[0]?.id || "";
+    const categoryName = categories.find((category) => category.id === categoryId)?.name;
+    const saved: Product = {
+      id: productData.id || `prod-${Date.now()}`,
+      slug: productData.slug || existing?.slug || `product-${Date.now()}`,
+      name: productData.name || existing?.name || "New Jewellery Item",
+      sku: productData.sku || existing?.sku || `MG-${Date.now().toString().slice(-4)}`,
+      shortDescription: productData.shortDescription ?? existing?.shortDescription ?? "",
+      description: productData.description ?? existing?.description ?? "",
+      categoryId,
+      categoryName: productData.categoryName || categoryName || existing?.categoryName,
+      tags: productData.tags ?? existing?.tags ?? [],
+      status: productData.status || existing?.status || "published",
+      isFeatured: productData.isFeatured ?? existing?.isFeatured ?? false,
+      images: productData.images ?? existing?.images ?? [],
+      videoUrl: productData.videoUrl ?? existing?.videoUrl,
+      price: Number(productData.price ?? existing?.price) || 0,
+      compareAtPrice:
+        productData.compareAtPrice ?? existing?.compareAtPrice,
+      costPrice: productData.costPrice ?? existing?.costPrice,
+      currency: "PKR",
+      trackInventory: productData.trackInventory ?? existing?.trackInventory ?? true,
+      stockQuantity: Number(productData.stockQuantity ?? existing?.stockQuantity) || 0,
+      lowStockThreshold:
+        Number(productData.lowStockThreshold ?? existing?.lowStockThreshold) || 3,
+      allowBackorders:
+        productData.allowBackorders ?? existing?.allowBackorders ?? false,
+      variations: productData.variations ?? existing?.variations ?? [],
+      attributes: productData.attributes ?? existing?.attributes ?? [],
+      createdAt: productData.createdAt || existing?.createdAt || now,
+      updatedAt: now,
+      orderCount: productData.orderCount ?? existing?.orderCount ?? 0,
+      rating: productData.rating ?? existing?.rating ?? 5,
+      reviewCount: productData.reviewCount ?? existing?.reviewCount ?? 0,
+    };
+    const { data, error } = await supabase
+      .from("products")
+      .upsert(mapProductToRow(saved), { onConflict: "id" })
+      .select("*, categories(name)")
+      .single();
+    if (error) {
+      throw new Error(`Unable to save product: ${error.message}`);
+    }
+    return mapProductRow(data);
+  }
+
+  const store = getLocalStore();
   const now = new Date().toISOString();
   let saved: Product;
 
@@ -600,34 +904,29 @@ export async function saveProduct(productData: Partial<Product>): Promise<Produc
 
   saveDataToFile(store);
 
-  if (isSupabaseConfigured()) {
-    const supabase = getSupabaseServer();
-    if (supabase) {
-      await supabase.from("products").upsert(saved);
-    }
-  }
-
   return saved;
 }
 
 export async function deleteProduct(id: string): Promise<boolean> {
-  const store = ensureDataFile();
+  if (isSupabaseConfigured()) {
+    const { data, error } = await getRequiredSupabase()
+      .from("products")
+      .delete()
+      .eq("id", id)
+      .select("id");
+    if (error) {
+      throw new Error(`Unable to delete product: ${error.message}`);
+    }
+    return Boolean(data?.length);
+  }
+
+  const store = getLocalStore();
   if (!store.products.some((product) => product.id === id)) {
     return false;
   }
 
   store.products = store.products.filter((p) => p.id !== id);
   saveDataToFile(store);
-
-  if (isSupabaseConfigured()) {
-    const supabase = getSupabaseServer();
-    if (supabase) {
-      const { error } = await supabase.from("products").delete().eq("id", id);
-      if (error) {
-        throw new Error(`Unable to delete product: ${error.message}`);
-      }
-    }
-  }
 
   return true;
 }
@@ -641,7 +940,31 @@ export async function getPopularProducts(limit = 4): Promise<{
   isBestseller: boolean;
   confirmedQuantity: number;
 }[]> {
-  const store = ensureDataFile();
+  const store = isSupabaseConfigured()
+    ? {
+        settings: await getStoreSettings(),
+        products: await (async () => {
+          const { data, error } = await getRequiredSupabase()
+            .from("products")
+            .select("*, categories(name)")
+            .eq("status", "published");
+          if (error) {
+            throw new Error(`Unable to load popular products: ${error.message}`);
+          }
+          return (data || []).map((row) => mapProductRow(row));
+        })(),
+        orders: await (async () => {
+          const { data, error } = await getRequiredSupabase()
+            .from("orders")
+            .select("*")
+            .neq("order_status", "cancelled");
+          if (error) {
+            throw new Error(`Unable to load popular-product orders: ${error.message}`);
+          }
+          return (data || []).map((row) => mapOrderRow(row));
+        })(),
+      }
+    : getLocalStore();
   const minThreshold = store.settings.bestsellerMinOrders || 2;
 
   // Aggregate quantities from non-cancelled orders
@@ -703,8 +1026,23 @@ export async function getOrders(params: GetOrdersParams = {}): Promise<{
   page: number;
   totalPages: number;
 }> {
-  const store = ensureDataFile();
-  let list = [...store.orders];
+  let list: Order[];
+  if (isSupabaseConfigured()) {
+    let query = getRequiredSupabase().from("orders").select("*");
+    if (params.status && params.status !== "all") {
+      query = query.eq("order_status", params.status);
+    }
+    if (params.paymentStatus && params.paymentStatus !== "all") {
+      query = query.eq("payment_status", params.paymentStatus);
+    }
+    const { data, error } = await query.order("created_at", { ascending: false });
+    if (error) {
+      throw new Error(`Unable to load orders: ${error.message}`);
+    }
+    list = (data || []).map((row) => mapOrderRow(row));
+  } else {
+    list = [...getLocalStore().orders];
+  }
 
   if (params.status && params.status !== "all") {
     list = list.filter((o) => o.orderStatus === params.status);
@@ -744,13 +1082,29 @@ export async function getOrders(params: GetOrdersParams = {}): Promise<{
 }
 
 export async function getOrderById(id: string): Promise<Order | null> {
-  const store = ensureDataFile();
-  return store.orders.find((o) => o.id === id) || null;
+  if (isSupabaseConfigured()) {
+    const { data, error } = await getRequiredSupabase()
+      .from("orders")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle();
+    if (error) throw new Error(`Unable to load order: ${error.message}`);
+    return data ? mapOrderRow(data) : null;
+  }
+  return getLocalStore().orders.find((o) => o.id === id) || null;
 }
 
 export async function getOrderByNumber(orderNumber: string): Promise<Order | null> {
-  const store = ensureDataFile();
-  return store.orders.find((o) => o.orderNumber === orderNumber) || null;
+  if (isSupabaseConfigured()) {
+    const { data, error } = await getRequiredSupabase()
+      .from("orders")
+      .select("*")
+      .eq("order_number", orderNumber)
+      .maybeSingle();
+    if (error) throw new Error(`Unable to load order: ${error.message}`);
+    return data ? mapOrderRow(data) : null;
+  }
+  return getLocalStore().orders.find((o) => o.orderNumber === orderNumber) || null;
 }
 
 /**
@@ -776,7 +1130,124 @@ export async function createOrder(orderInput: {
   paymentMethod: "easypaisa" | "jazzcash" | "cod" | "bank_transfer";
   paymentProofUrl?: string;
 }): Promise<Order> {
-  const store = ensureDataFile();
+  if (isSupabaseConfigured()) {
+    const supabase = getRequiredSupabase();
+    const requestedIds = Array.from(
+      new Set(orderInput.items.map((item) => item.productId))
+    );
+    if (orderInput.items.some((item) => !Number.isInteger(item.quantity) || item.quantity <= 0)) {
+      throw new Error("Order quantities must be positive whole numbers.");
+    }
+
+    const [{ data: rows, error: productsError }, settings] = await Promise.all([
+      supabase.from("products").select("*, categories(name)").in("id", requestedIds),
+      getStoreSettings(),
+    ]);
+    if (productsError) {
+      throw new Error(`Unable to validate order products: ${productsError.message}`);
+    }
+
+    const productMap = new Map(
+      (rows || []).map((row) => [String(row.id), mapProductRow(row)])
+    );
+    const now = new Date().toISOString();
+    let subtotal = 0;
+    const inventory = new Map<string, { product: Product; quantity: number }>();
+    const validatedItems: OrderItem[] = orderInput.items.map((item) => {
+      const product = productMap.get(item.productId);
+      if (!product) throw new Error(`Product with ID ${item.productId} not found.`);
+      if (product.status !== "published") {
+        throw new Error(`Product "${product.name}" is not currently available.`);
+      }
+      if (
+        !hasAvailableVariantSelection(product.variations) ||
+        !areVariationSelectionsAvailable(product.variations, item.variationText)
+      ) {
+        throw new Error(`The selected option for "${product.name}" is not currently available.`);
+      }
+      const lineTotal = product.price * item.quantity;
+      subtotal += lineTotal;
+      const current = inventory.get(product.id);
+      inventory.set(product.id, {
+        product,
+        quantity: (current?.quantity || 0) + item.quantity,
+      });
+      return {
+        id: `item-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+        productId: product.id,
+        productName: product.name,
+        productSlug: product.slug,
+        productImage: product.images[0] || "/images/mesm-logo.png",
+        variationText: item.variationText,
+        quantity: item.quantity,
+        unitPrice: product.price,
+        lineTotal,
+      };
+    });
+
+    for (const { product, quantity } of Array.from(inventory.values())) {
+      if (
+        product.trackInventory &&
+        !product.allowBackorders &&
+        product.stockQuantity < quantity
+      ) {
+        throw new Error(
+          `Insufficient stock for "${product.name}". Only ${product.stockQuantity} remaining.`
+        );
+      }
+    }
+
+    const deliveryFee =
+      subtotal >= (settings.freeDeliveryThreshold || 3000)
+        ? 0
+        : settings.flatDeliveryFee || 250;
+    const newOrder: Order = {
+      id: `ord-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      orderNumber: orderInput.orderNumber,
+      customerName: orderInput.customerName.trim(),
+      customerPhone: orderInput.customerPhone.trim(),
+      customerEmail: orderInput.customerEmail?.trim(),
+      customerCity: orderInput.customerCity.trim(),
+      deliveryAddress: orderInput.deliveryAddress.trim(),
+      deliveryInstructions: orderInput.deliveryInstructions?.trim(),
+      giftMessage: orderInput.giftMessage?.trim(),
+      items: validatedItems,
+      subtotal,
+      deliveryFee,
+      discount: 0,
+      total: subtotal + deliveryFee,
+      orderStatus: "pending",
+      paymentStatus: orderInput.paymentMethod === "cod" ? "unpaid" : "awaiting_verification",
+      paymentMethod: orderInput.paymentMethod,
+      paymentProofUrl: orderInput.paymentProofUrl,
+      createdAt: now,
+      updatedAt: now,
+      timeline: [{
+        id: `tl-${Date.now()}`,
+        timestamp: now,
+        status: "pending",
+        title: "Order Placed via Customer Checkout",
+        description: `Order created for WhatsApp confirmation via ${orderInput.paymentMethod.toUpperCase()}`,
+        actor: "customer",
+      }],
+    };
+    const { data, error } = await supabase.rpc("create_order_with_inventory", {
+      p_order: mapOrderToRow(newOrder),
+      p_inventory: Array.from(inventory.values()).map(({ product, quantity }) => ({
+        product_id: product.id,
+        quantity,
+        expected_price: product.price,
+      })),
+    });
+    if (error) {
+      throw new Error(
+        `Unable to place order in Supabase. Ensure the inventory transaction migration is applied: ${error.message}`
+      );
+    }
+    return mapOrderRow(data as Record<string, unknown>);
+  }
+
+  const store = getLocalStore();
   const now = new Date().toISOString();
 
   const itemsWithProducts = orderInput.items.map((itemInput) => {
@@ -888,39 +1359,6 @@ export async function createOrder(orderInput: {
   store.orders.unshift(newOrder);
   saveDataToFile(store);
 
-  if (isSupabaseConfigured()) {
-    const supabase = getSupabaseServer();
-    if (supabase) {
-      const { error } = await supabase.from("orders").insert({
-        id: newOrder.id,
-        order_number: newOrder.orderNumber,
-        customer_name: newOrder.customerName,
-        customer_phone: newOrder.customerPhone,
-        customer_email: newOrder.customerEmail || null,
-        customer_city: newOrder.customerCity,
-        delivery_address: newOrder.deliveryAddress,
-        delivery_instructions: newOrder.deliveryInstructions || null,
-        gift_message: newOrder.giftMessage || null,
-        items: newOrder.items,
-        subtotal: newOrder.subtotal,
-        delivery_fee: newOrder.deliveryFee,
-        discount: newOrder.discount,
-        total: newOrder.total,
-        order_status: newOrder.orderStatus,
-        payment_status: newOrder.paymentStatus,
-        payment_method: newOrder.paymentMethod,
-        payment_proof_url: newOrder.paymentProofUrl || null,
-        admin_notes: newOrder.adminNotes || null,
-        timeline: newOrder.timeline,
-        created_at: newOrder.createdAt,
-        updated_at: newOrder.updatedAt,
-      });
-      if (error) {
-        throw new Error(`Unable to save order to the database: ${error.message}`);
-      }
-    }
-  }
-
   return newOrder;
 }
 
@@ -929,7 +1367,37 @@ export async function updateOrderStatus(
   newStatus: OrderStatus,
   notes?: string
 ): Promise<Order> {
-  const store = ensureDataFile();
+  if (isSupabaseConfigured()) {
+    const current = await getOrderById(orderId);
+    if (!current) throw new Error("Order not found");
+    if (current.orderStatus === newStatus) return current;
+    const now = new Date().toISOString();
+    const event: OrderTimelineEvent = {
+      id: `tl-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      timestamp: now,
+      status: newStatus,
+      title: `Status changed to ${newStatus.toUpperCase()}`,
+      description: notes || `Admin updated order status to ${newStatus}`,
+      actor: "admin",
+    };
+    const { data, error } = await getRequiredSupabase().rpc(
+      "update_order_status_with_inventory",
+      {
+        p_order_id: orderId,
+        p_new_status: newStatus,
+        p_notes: notes ?? null,
+        p_event: event,
+      }
+    );
+    if (error) {
+      throw new Error(
+        `Unable to update order status in Supabase. Ensure the inventory transaction migration is applied: ${error.message}`
+      );
+    }
+    return mapOrderRow(data as Record<string, unknown>);
+  }
+
+  const store = getLocalStore();
   const order = store.orders.find((o) => o.id === orderId);
   if (!order) {
     throw new Error("Order not found");
@@ -979,13 +1447,6 @@ export async function updateOrderStatus(
 
   saveDataToFile(store);
 
-  if (isSupabaseConfigured()) {
-    const supabase = getSupabaseServer();
-    if (supabase) {
-      await supabase.from("orders").update(order).eq("id", orderId);
-    }
-  }
-
   return order;
 }
 
@@ -994,7 +1455,34 @@ export async function updateOrderPaymentStatus(
   paymentStatus: PaymentStatus,
   notes?: string
 ): Promise<Order> {
-  const store = ensureDataFile();
+  if (isSupabaseConfigured()) {
+    const current = await getOrderById(orderId);
+    if (!current) throw new Error("Order not found");
+    const now = new Date().toISOString();
+    const event: OrderTimelineEvent = {
+      id: `tl-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      timestamp: now,
+      status: paymentStatus,
+      title: `Payment status changed to ${paymentStatus.toUpperCase()}`,
+      description: notes || `Admin verified payment as ${paymentStatus}`,
+      actor: "admin",
+    };
+    const { data, error } = await getRequiredSupabase().rpc(
+      "update_order_payment_status",
+      {
+        p_order_id: orderId,
+        p_new_status: paymentStatus,
+        p_notes: notes ?? null,
+        p_event: event,
+      }
+    );
+    if (error) {
+      throw new Error(`Unable to update payment status in Supabase: ${error.message}`);
+    }
+    return mapOrderRow(data as Record<string, unknown>);
+  }
+
+  const store = getLocalStore();
   const order = store.orders.find((o) => o.id === orderId);
   if (!order) {
     throw new Error("Order not found");
@@ -1018,13 +1506,6 @@ export async function updateOrderPaymentStatus(
 
   saveDataToFile(store);
 
-  if (isSupabaseConfigured()) {
-    const supabase = getSupabaseServer();
-    if (supabase) {
-      await supabase.from("orders").update(order).eq("id", orderId);
-    }
-  }
-
   return order;
 }
 
@@ -1033,7 +1514,20 @@ export async function updateOrderPaymentStatus(
    ========================================================================== */
 
 export async function getSalesAnalytics(): Promise<SalesAnalyticsSummary> {
-  const store = ensureDataFile();
+  const store = isSupabaseConfigured()
+    ? {
+        orders: await (async () => {
+          const { data, error } = await getRequiredSupabase().from("orders").select("*");
+          if (error) throw new Error(`Unable to load analytics orders: ${error.message}`);
+          return (data || []).map((row) => mapOrderRow(row));
+        })(),
+        products: await (async () => {
+          const { data, error } = await getRequiredSupabase().from("products").select("*");
+          if (error) throw new Error(`Unable to load analytics products: ${error.message}`);
+          return (data || []).map((row) => mapProductRow(row));
+        })(),
+      }
+    : getLocalStore();
 
   const allOrders = store.orders;
   const nonCancelled = allOrders.filter((o) => o.orderStatus !== "cancelled");
@@ -1139,35 +1633,30 @@ export async function getSalesAnalytics(): Promise<SalesAnalyticsSummary> {
    ========================================================================== */
 
 export async function getReviews(productId?: string): Promise<Review[]> {
-  const store = ensureDataFile();
   if (isSupabaseConfigured()) {
-    const supabase = getSupabaseServer();
-    if (supabase) {
-      let query = supabase
-        .from("reviews")
-        .select("*")
-        .eq("is_approved", true)
-        .order("created_at", { ascending: false });
-      if (productId) query = query.eq("product_id", productId);
-
-      const { data, error } = await query;
-      if (error) {
-        console.error("Unable to load approved reviews from Supabase:", error.message);
-      } else if (data) {
-        return data.map((row) => ({
-          id: row.id,
-          productId: row.product_id,
-          customerName: row.customer_name,
-          rating: row.rating,
-          comment: row.comment,
-          isVerifiedPurchase: row.is_verified_purchase,
-          isApproved: row.is_approved,
-          createdAt: row.created_at,
-        })) as Review[];
-      }
+    let query = getRequiredSupabase()
+      .from("reviews")
+      .select("*")
+      .eq("is_approved", true)
+      .order("created_at", { ascending: false });
+    if (productId) query = query.eq("product_id", productId);
+    const { data, error } = await query;
+    if (error) {
+      throw new Error(`Unable to load approved reviews: ${error.message}`);
     }
+    return (data || []).map((row) => ({
+      id: String(row.id),
+      productId: String(row.product_id),
+      customerName: String(row.customer_name),
+      rating: Number(row.rating),
+      comment: String(row.comment),
+      isVerifiedPurchase: Boolean(row.is_verified_purchase),
+      isApproved: Boolean(row.is_approved),
+      createdAt: String(row.created_at),
+    }));
   }
 
+  const store = getLocalStore();
   if (productId) {
     return store.reviews.filter((r) => r.productId === productId && r.isApproved === true);
   }
@@ -1177,7 +1666,6 @@ export async function getReviews(productId?: string): Promise<Review[]> {
 export async function addReview(
   review: Omit<Review, "id" | "createdAt" | "isApproved" | "isVerifiedPurchase">
 ): Promise<Review> {
-  const store = ensureDataFile();
   const newReview: Review = {
     ...review,
     id: `rev-${Date.now()}`,
@@ -1185,6 +1673,35 @@ export async function addReview(
     isApproved: false,
     createdAt: new Date().toISOString(),
   };
+  if (isSupabaseConfigured()) {
+    const { data, error } = await getRequiredSupabase()
+      .from("reviews")
+      .insert({
+        id: newReview.id,
+        product_id: newReview.productId,
+        customer_name: newReview.customerName,
+        rating: newReview.rating,
+        comment: newReview.comment,
+        is_verified_purchase: newReview.isVerifiedPurchase,
+        is_approved: newReview.isApproved,
+        created_at: newReview.createdAt,
+      })
+      .select("*")
+      .single();
+    if (error) throw new Error(`Unable to submit review: ${error.message}`);
+    return {
+      id: String(data.id),
+      productId: String(data.product_id),
+      customerName: String(data.customer_name),
+      rating: Number(data.rating),
+      comment: String(data.comment),
+      isVerifiedPurchase: Boolean(data.is_verified_purchase),
+      isApproved: Boolean(data.is_approved),
+      createdAt: String(data.created_at),
+    };
+  }
+
+  const store = getLocalStore();
   store.reviews.push(newReview);
   saveDataToFile(store);
   return newReview;
@@ -1195,7 +1712,12 @@ export async function addReview(
    ========================================================================== */
 
 export async function resetStoreData(): Promise<void> {
-  const store = ensureDataFile();
+  if (isSupabaseConfigured()) {
+    throw new Error(
+      "The bulk reset action is disabled for Supabase production data. Use a reviewed, table-specific maintenance procedure."
+    );
+  }
+  const store = getLocalStore();
   const resetStore = {
     ...store,
     products: [],
