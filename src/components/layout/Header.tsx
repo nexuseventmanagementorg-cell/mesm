@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { Suspense, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
@@ -21,9 +21,61 @@ interface HeaderProps {
   categories?: Category[];
 }
 
-export function Header({ settings, categories = [] }: HeaderProps) {
+const primaryNavigation = [
+  { label: "Shop All", href: "/shop" },
+  { label: "Categories", href: "/categories" },
+  { label: "New In", href: "/shop?collection=new-in" },
+  { label: "Best Sellers", href: "/shop?collection=best-sellers" },
+  { label: "Gift Picks", href: "/shop?collection=gift-picks" },
+  { label: "Our Story", href: "/about" },
+];
+
+function DesktopNavigation() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+
+  return (
+    <nav className="hidden lg:flex items-center gap-3 xl:gap-5 text-xs xl:text-sm font-medium text-brand-mocha">
+      {primaryNavigation.map((item) => (
+        <Link
+          key={item.label}
+          href={item.href}
+          className={`whitespace-nowrap transition-colors hover:text-brand-gold ${
+            (item.href === "/shop" && pathname === "/shop") ||
+            (item.href === "/categories" && pathname === "/categories") ||
+            (item.href.includes("collection=") &&
+              pathname === "/shop" &&
+              searchParams.get("collection") ===
+                new URLSearchParams(item.href.split("?")[1]).get("collection")) ||
+            (item.href === "/about" && pathname === "/about")
+              ? "text-brand-gold font-semibold"
+              : ""
+          }`}
+        >
+          {item.label}
+        </Link>
+      ))}
+    </nav>
+  );
+}
+
+function DesktopNavigationFallback() {
+  return (
+    <nav className="hidden lg:flex items-center gap-3 xl:gap-5 text-xs xl:text-sm font-medium text-brand-mocha">
+      {primaryNavigation.map((item) => (
+        <Link
+          key={item.label}
+          href={item.href}
+          className="whitespace-nowrap transition-colors hover:text-brand-gold"
+        >
+          {item.label}
+        </Link>
+      ))}
+    </nav>
+  );
+}
+
+export function Header({ settings, categories = [] }: HeaderProps) {
   const { itemCount, setIsCartOpen } = useCart();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -35,15 +87,6 @@ export function Header({ settings, categories = [] }: HeaderProps) {
       window.location.href = `/shop?search=${encodeURIComponent(searchQuery.trim())}`;
     }
   };
-
-  const primaryNavigation = [
-    { label: "Shop All", href: "/shop" },
-    { label: "Categories", href: "/categories" },
-    { label: "New In", href: "/shop?collection=new-in" },
-    { label: "Best Sellers", href: "/shop?collection=best-sellers" },
-    { label: "Gift Picks", href: "/shop?collection=gift-picks" },
-    { label: "Our Story", href: "/about" },
-  ];
 
   return (
     <header className="sticky top-0 z-40 w-full bg-brand-warm/95 backdrop-blur-md border-b border-brand-mocha/10 transition-all duration-200">
@@ -98,27 +141,9 @@ export function Header({ settings, categories = [] }: HeaderProps) {
           </div>
 
           {/* Desktop Nav Links */}
-          <nav className="hidden lg:flex items-center gap-3 xl:gap-5 text-xs xl:text-sm font-medium text-brand-mocha">
-            {primaryNavigation.map((item) => (
-              <Link
-                key={item.label}
-                href={item.href}
-                className={`whitespace-nowrap transition-colors hover:text-brand-gold ${
-                  (item.href === "/shop" && pathname === "/shop") ||
-                  (item.href === "/categories" && pathname === "/categories") ||
-                  (item.href.includes("collection=") &&
-                    pathname === "/shop" &&
-                    searchParams.get("collection") ===
-                      new URLSearchParams(item.href.split("?")[1]).get("collection")) ||
-                  (item.href === "/about" && pathname === "/about")
-                    ? "text-brand-gold font-semibold"
-                    : ""
-                }`}
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
+          <Suspense fallback={<DesktopNavigationFallback />}>
+            <DesktopNavigation />
+          </Suspense>
 
           {/* Right Action Icons */}
           <div className="flex flex-shrink-0 items-center space-x-1 sm:space-x-4">
