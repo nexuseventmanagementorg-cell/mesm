@@ -8,7 +8,10 @@ export function HeroVideo() {
         preload="metadata"
         aria-label="MESM original handicrafts video"
       >
-        <source src="/images/kashif%20bhai/MESM.mp4" type="video/mp4" />
+        <source
+          src="https://media.githubusercontent.com/media/nexuseventmanagementorg-cell/mesm/main/public/images/kashif%20bhai/MESM.mp4"
+          type="video/mp4"
+        />
         Your browser does not support embedded videos.
       </video>
     </div>
