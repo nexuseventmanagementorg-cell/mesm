@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { Play } from "lucide-react";
 
-const HERO_VIDEO_URL = "/images/kashif%20bhai/MESM-mobile.mp4";
+const HERO_VIDEO_URL =
+  "https://media.githubusercontent.com/media/nexuseventmanagementorg-cell/mesm/main/public/images/kashif%20bhai/MESM-mobile.mp4";
 
 export function HeroVideo() {
   const [videoRequested, setVideoRequested] = useState(false);
