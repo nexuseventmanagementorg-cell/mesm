@@ -263,25 +263,27 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
                 Explore the edit <ArrowDown className="h-4 w-4 text-brand-gold-light" />
               </Link>
             </div>
-            <div className={`editorial-feature-float relative min-h-[280px] overflow-hidden bg-gradient-to-br ${editorial.accent} lg:col-span-5 lg:min-h-[500px] lg:rounded-l-[3rem] lg:border-l lg:border-brand-gold/20`}>
-              {editorialHero?.images[0] ? (
-                <Image
-                  src={editorialHero.images[0]}
-                  alt={editorialHero.name}
-                  fill
-                  priority
-                  sizes="(max-width: 1024px) 100vw, 42vw"
-                  className="rounded-2xl object-contain p-6 sm:rounded-3xl sm:p-10"
-                />
-              ) : (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <Sparkles className="h-20 w-20 text-brand-mocha/20" />
-                </div>
-              )}
+            <div className={`editorial-feature-float relative flex flex-col overflow-hidden bg-gradient-to-br ${editorial.accent} lg:col-span-5 lg:block lg:min-h-[500px] lg:rounded-l-[3rem] lg:border-l lg:border-brand-gold/20`}>
+              <div className="relative h-[280px] shrink-0 sm:h-[340px] lg:absolute lg:inset-0 lg:h-auto">
+                {editorialHero?.images[0] ? (
+                  <Image
+                    src={editorialHero.images[0]}
+                    alt={editorialHero.name}
+                    fill
+                    priority
+                    sizes="(max-width: 1024px) 100vw, 42vw"
+                    className="rounded-2xl object-contain p-6 sm:rounded-3xl sm:p-10"
+                  />
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Sparkles className="h-20 w-20 text-brand-mocha/20" />
+                  </div>
+                )}
+              </div>
               {editorialHero && (
                 <Link
                   href={`/product/${editorialHero.slug}`}
-                  className="absolute bottom-4 left-4 right-4 flex items-center justify-between gap-3 rounded-2xl border border-brand-gold/40 bg-[#2b1009]/95 p-4 text-[#fff7ec] shadow-card sm:bottom-6 sm:left-6 sm:right-6"
+                  className="relative mx-4 mb-4 flex items-center justify-between gap-3 rounded-2xl border border-brand-gold/40 bg-[#2b1009]/95 p-4 text-[#fff7ec] shadow-card sm:mx-6 sm:mb-6 lg:absolute lg:bottom-6 lg:left-6 lg:right-6 lg:mx-0 lg:mb-0"
                 >
                   <span className="min-w-0">
                     <span className="block text-[10px] font-bold uppercase tracking-widest text-[#f4c879]">

@@ -132,7 +132,7 @@ export default async function HomePage() {
               <div className="relative mx-auto mt-10 w-full max-w-none">
                 <p
                   aria-label="Where Every Style Tells Your Story."
-                  className="mb-3 whitespace-nowrap text-center font-signature text-[clamp(0.75rem,3.7vw,1.125rem)] font-semibold uppercase text-brand-gold-light sm:text-[clamp(1.125rem,3vw,1.75rem)] lg:text-[clamp(1.25rem,2.18vw,1.75rem)]"
+                  className="mb-3 text-center font-sans text-[clamp(0.75rem,3.7vw,1.125rem)] font-semibold uppercase text-brand-gold-light sm:text-[clamp(1.125rem,3vw,1.75rem)] lg:text-[clamp(1.25rem,2.18vw,1.75rem)]"
                 >
                   <span className="hero-tagline-word" aria-hidden="true">Where</span>{" "}
                   <span className="hero-tagline-word" aria-hidden="true">Every</span>{" "}

@@ -42,10 +42,10 @@ export default async function AboutPage() {
 
         {/* Narrative Box */}
         <div className="bg-brand-warm rounded-3xl p-8 sm:p-12 border border-brand-mocha/10 shadow-soft space-y-6 text-sm sm:text-base leading-relaxed text-brand-mocha-muted">
-          <h2 className="font-signature text-3xl sm:text-4xl font-bold text-brand-mocha">
+          <h2 className="font-serif text-3xl sm:text-4xl font-bold text-brand-mocha">
             Our Story
           </h2>
-          <p className="font-signature text-lg sm:text-xl font-medium text-brand-mocha">
+          <p className="font-sans text-base sm:text-lg font-medium text-brand-mocha">
             <StoryReadingText text={storyText} />
           </p>
           <p>{settings.supportingCopy}</p>
