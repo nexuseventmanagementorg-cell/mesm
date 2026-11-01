@@ -223,7 +223,7 @@ export function Header({ settings, categories = [] }: HeaderProps) {
                   >
                     {c.imageUrl && (
                       <span className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-md border border-brand-gold/30 bg-brand-cream">
-                        <CategoryImage src={c.imageUrl} videoUrl={c.videoUrl} alt="" />
+                        <CategoryImage src={c.imageUrl} alt="" />
                       </span>
                     )}
                     <span className="truncate">{c.name}</span>

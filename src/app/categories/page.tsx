@@ -52,7 +52,6 @@ export default async function CategoriesPage() {
               <div className="relative aspect-square overflow-hidden border-b border-brand-mocha/10 bg-brand-cream p-2 sm:p-3">
                 <CategoryImage
                   src={category.imageUrl}
-                  videoUrl={category.videoUrl}
                   alt={category.name}
                 />
               </div>

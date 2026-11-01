@@ -205,7 +205,6 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
               <div className="relative hidden h-48 w-48 flex-shrink-0 overflow-hidden rounded-2xl border-4 border-brand-gold/50 bg-brand-warm p-1.5 shadow-soft sm:block lg:h-56 lg:w-56">
                 <CategoryImage
                   src={activeCategory.imageUrl}
-                  videoUrl={activeCategory.videoUrl}
                   alt={activeCategory.name}
                 />
               </div>

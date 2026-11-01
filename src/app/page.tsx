@@ -132,7 +132,7 @@ export default async function HomePage() {
               <div className="relative mx-auto mt-10 w-full max-w-none">
                 <p
                   aria-label="Where Every Style Tells Your Story."
-                  className="mb-3 text-center font-signature text-2xl font-semibold text-brand-gold-light sm:text-3xl"
+                  className="mb-3 whitespace-nowrap text-center font-signature text-[clamp(0.75rem,3.7vw,1.125rem)] font-semibold uppercase text-brand-gold-light sm:text-[clamp(1.125rem,3vw,1.75rem)] lg:text-[clamp(1.25rem,2.18vw,1.75rem)]"
                 >
                   <span className="hero-tagline-word" aria-hidden="true">Where</span>{" "}
                   <span className="hero-tagline-word" aria-hidden="true">Every</span>{" "}
@@ -235,7 +235,6 @@ export default async function HomePage() {
               >
                 <CategoryImage
                   src={cat.imageUrl}
-                  videoUrl={cat.videoUrl}
                   alt={cat.name}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-brand-mocha/80 via-brand-mocha/20 to-transparent" />

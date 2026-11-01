@@ -8,31 +8,15 @@ const FALLBACK_IMAGE =
 
 interface CategoryImageProps {
   src?: string;
-  videoUrl?: string;
   alt: string;
 }
 
-export function CategoryImage({ src, videoUrl, alt }: CategoryImageProps) {
+export function CategoryImage({ src, alt }: CategoryImageProps) {
   const [imageSrc, setImageSrc] = useState(src || FALLBACK_IMAGE);
 
   useEffect(() => {
     setImageSrc(src || FALLBACK_IMAGE);
   }, [src]);
-
-  if (videoUrl) {
-    return (
-      <video
-        src={videoUrl}
-        poster={imageSrc}
-        aria-label={`${alt} category video`}
-        autoPlay
-        muted
-        loop
-        playsInline
-        className="absolute inset-0 h-full w-full object-contain transition-transform duration-500 ease-out group-hover:scale-105 motion-reduce:transition-none"
-      />
-    );
-  }
 
   return (
     <Image
