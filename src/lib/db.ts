@@ -24,6 +24,12 @@ import {
   areVariationSelectionsAvailable,
   hasAvailableVariantSelection,
 } from "./variation-availability.mjs";
+import {
+  getCustomerOrderConfirmation as projectCustomerOrderConfirmation,
+  persistCustomerAccessHashInTimeline,
+  recoverCustomerAccessHashFromTimeline,
+} from "./customer-order-access.mjs";
+import { isPersistedOrderResponse } from "./order-rpc-response.mjs";
 
 interface StoreData {
   settings: StoreSettings;
@@ -143,6 +149,7 @@ function mapProductToRow(product: Product) {
 }
 
 function mapOrderRow(row: Record<string, unknown>): Order {
+  const { timeline, tokenHash } = recoverCustomerAccessHashFromTimeline(row.timeline);
   return {
     id: String(row.id),
     orderNumber: String(row.order_number),
@@ -164,16 +171,22 @@ function mapOrderRow(row: Record<string, unknown>): Order {
     paymentMethod: String(row.payment_method) as Order["paymentMethod"],
     paymentProofUrl:
       typeof row.payment_proof_url === "string" ? row.payment_proof_url : undefined,
+    customerAccessTokenHash: tokenHash,
     adminNotes: typeof row.admin_notes === "string" ? row.admin_notes : undefined,
     createdAt: String(row.created_at ?? new Date().toISOString()),
     updatedAt: String(row.updated_at ?? new Date().toISOString()),
-    timeline: Array.isArray(row.timeline)
-      ? row.timeline as OrderTimelineEvent[]
-      : [],
+    timeline,
   };
 }
 
 function mapOrderToRow(order: Order) {
+  const timeline = order.customerAccessTokenHash
+    ? persistCustomerAccessHashInTimeline(
+        order.timeline,
+        order.customerAccessTokenHash
+      )
+    : order.timeline;
+
   return {
     id: order.id,
     order_number: order.orderNumber,
@@ -194,7 +207,7 @@ function mapOrderToRow(order: Order) {
     payment_method: order.paymentMethod,
     payment_proof_url: order.paymentProofUrl ?? null,
     admin_notes: order.adminNotes ?? null,
-    timeline: order.timeline,
+    timeline,
     created_at: order.createdAt,
     updated_at: order.updatedAt,
   };
@@ -1119,14 +1132,102 @@ export async function getOrderByNumber(orderNumber: string): Promise<Order | nul
   return getLocalStore().orders.find((o) => o.orderNumber === orderNumber) || null;
 }
 
+type CustomerOrderConfirmation = Omit<
+  Pick<
+    Order,
+    | "id"
+    | "orderNumber"
+    | "createdAt"
+    | "orderStatus"
+    | "paymentStatus"
+    | "paymentMethod"
+    | "paymentProofUrl"
+    | "customerName"
+    | "customerPhone"
+    | "customerCity"
+    | "deliveryAddress"
+    | "deliveryInstructions"
+    | "giftMessage"
+    | "items"
+    | "subtotal"
+    | "deliveryFee"
+    | "discount"
+    | "total"
+  >,
+  "items"
+> & {
+  items: Pick<
+    OrderItem,
+    | "productName"
+    | "productImage"
+    | "sku"
+    | "variationText"
+    | "quantity"
+    | "unitPrice"
+    | "lineTotal"
+  >[];
+};
+
+export async function getCustomerOrderConfirmation(
+  orderNumber: string,
+  token: unknown
+): Promise<CustomerOrderConfirmation | null> {
+  const order = await getOrderByNumber(orderNumber);
+  if (!order) return null;
+  return projectCustomerOrderConfirmation(
+    order,
+    orderNumber,
+    token
+  ) as CustomerOrderConfirmation | null;
+}
+
 /**
  * Inventory Policy:
  * 1. Upon order placement, authoritative stock is checked and reserved (stockQuantity decremented).
  * 2. If an order is later Cancelled by the admin, reserved stock is automatically restored.
  * 3. Double-decrementing is strictly prevented by checking previous status.
  */
+export class OrderIdempotencyConflictError extends Error {
+  constructor() {
+    super("This checkout key was already used with different order details.");
+    this.name = "OrderIdempotencyConflictError";
+  }
+}
+
+export async function getOrderByIdempotencyKey(
+  idempotencyKey: string,
+  requestFingerprint: string
+): Promise<Order | null> {
+  let order: Order | null = null;
+  if (isSupabaseConfigured()) {
+    const { data, error } = await getRequiredSupabase()
+      .from("orders")
+      .select("*")
+      .eq("idempotency_key", idempotencyKey)
+      .maybeSingle();
+    if (error) {
+      throw new Error(`Unable to check checkout idempotency: ${error.message}`);
+    }
+    if (data && data.request_fingerprint !== requestFingerprint) {
+      throw new OrderIdempotencyConflictError();
+    }
+    if (data) order = mapOrderRow(data);
+  } else {
+    order =
+      getLocalStore().orders.find((entry) => entry.idempotencyKey === idempotencyKey) ||
+      null;
+    if (order && order.requestFingerprint !== requestFingerprint) {
+      throw new OrderIdempotencyConflictError();
+    }
+  }
+  return order;
+}
+
 export async function createOrder(orderInput: {
   orderNumber: string;
+  idempotencyKey: string;
+  requestFingerprint: string;
+  createdAt: string;
   customerName: string;
   customerPhone: string;
   customerEmail?: string;
@@ -1141,9 +1242,20 @@ export async function createOrder(orderInput: {
   }[];
   paymentMethod: "easypaisa" | "jazzcash" | "cod" | "bank_transfer";
   paymentProofUrl?: string;
+  customerAccessTokenHash: string;
 }): Promise<Order> {
+  const isIdempotencyConflict = (error: { code?: string; message?: string }) =>
+    error.code === "IDEMPOTENCY_CONFLICT" ||
+    /idempotency_key_conflict/i.test(error.message || "");
+
   if (isSupabaseConfigured()) {
     const supabase = getRequiredSupabase();
+    const priorOrder = await getOrderByIdempotencyKey(
+      orderInput.idempotencyKey,
+      orderInput.requestFingerprint
+    );
+    if (priorOrder) return priorOrder;
+
     const requestedIds = Array.from(
       new Set(orderInput.items.map((item) => item.productId))
     );
@@ -1162,7 +1274,7 @@ export async function createOrder(orderInput: {
     const productMap = new Map(
       (rows || []).map((row) => [String(row.id), mapProductRow(row)])
     );
-    const now = new Date().toISOString();
+    const now = orderInput.createdAt;
     let subtotal = 0;
     const inventory = new Map<string, { product: Product; quantity: number }>();
     const validatedItems: OrderItem[] = orderInput.items.map((item) => {
@@ -1216,6 +1328,8 @@ export async function createOrder(orderInput: {
     const newOrder: Order = {
       id: `ord-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       orderNumber: orderInput.orderNumber,
+      idempotencyKey: orderInput.idempotencyKey,
+      requestFingerprint: orderInput.requestFingerprint,
       customerName: orderInput.customerName.trim(),
       customerPhone: orderInput.customerPhone.trim(),
       customerEmail: orderInput.customerEmail?.trim(),
@@ -1232,6 +1346,7 @@ export async function createOrder(orderInput: {
       paymentStatus: orderInput.paymentMethod === "cod" ? "unpaid" : "awaiting_verification",
       paymentMethod: orderInput.paymentMethod,
       paymentProofUrl: orderInput.paymentProofUrl,
+      customerAccessTokenHash: orderInput.customerAccessTokenHash,
       createdAt: now,
       updatedAt: now,
       timeline: [{
@@ -1250,17 +1365,28 @@ export async function createOrder(orderInput: {
         quantity,
         expected_price: product.price,
       })),
+      p_idempotency_key: orderInput.idempotencyKey,
+      p_request_fingerprint: orderInput.requestFingerprint,
     });
     if (error) {
+      if (isIdempotencyConflict(error)) throw new OrderIdempotencyConflictError();
       throw new Error(
-        `Unable to place order in Supabase. Ensure the inventory transaction migration is applied: ${error.message}`
+        `Unable to place order in Supabase: ${error.message}`
       );
+    }
+    if (!isPersistedOrderResponse(data)) {
+      throw new Error("Supabase returned an invalid persisted order response.");
     }
     return mapOrderRow(data as Record<string, unknown>);
   }
 
+  const priorAttempt = await getOrderByIdempotencyKey(
+    orderInput.idempotencyKey,
+    orderInput.requestFingerprint
+  );
+  if (priorAttempt) return priorAttempt;
   const store = getLocalStore();
-  const now = new Date().toISOString();
+  const now = orderInput.createdAt;
 
   const itemsWithProducts = orderInput.items.map((itemInput) => {
     const product = store.products.find((p) => p.id === itemInput.productId);
@@ -1338,6 +1464,8 @@ export async function createOrder(orderInput: {
   const newOrder: Order = {
     id: `ord-${Date.now()}`,
     orderNumber: orderInput.orderNumber,
+    idempotencyKey: orderInput.idempotencyKey,
+    requestFingerprint: orderInput.requestFingerprint,
     customerName: orderInput.customerName.trim(),
     customerPhone: orderInput.customerPhone.trim(),
     customerEmail: orderInput.customerEmail?.trim(),
@@ -1354,6 +1482,7 @@ export async function createOrder(orderInput: {
     paymentStatus: orderInput.paymentMethod === "cod" ? "unpaid" : "awaiting_verification",
     paymentMethod: orderInput.paymentMethod,
     paymentProofUrl: orderInput.paymentProofUrl,
+    customerAccessTokenHash: orderInput.customerAccessTokenHash,
     createdAt: now,
     updatedAt: now,
     timeline: [

@@ -83,6 +83,7 @@ export interface OrderItem {
   id?: string;
   productId: string;
   productName: string;
+  sku?: string;
   productSlug: string;
   productImage: string;
   variationText?: string;
@@ -111,6 +112,8 @@ export interface Order {
   deliveryInstructions?: string;
   giftMessage?: string;
   items: OrderItem[];
+  idempotencyKey?: string;
+  requestFingerprint?: string;
   subtotal: number;
   deliveryFee: number;
   discount: number;
@@ -119,6 +122,7 @@ export interface Order {
   paymentStatus: PaymentStatus;
   paymentMethod: PaymentMethod;
   paymentProofUrl?: string;
+  customerAccessTokenHash?: string;
   adminNotes?: string;
   createdAt: string;
   updatedAt: string;

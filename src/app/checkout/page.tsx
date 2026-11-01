@@ -23,6 +23,76 @@ import {
 
 type CheckoutPaymentMethod = "easypaisa" | "jazzcash" | "cod" | "bank_transfer";
 
+const CHECKOUT_ATTEMPT_STORAGE_KEY = "mesm_checkout_idempotency_attempt";
+const CHECKOUT_IDEMPOTENCY_KEY_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function createCheckoutIdempotencyKey() {
+  if (typeof window.crypto.randomUUID === "function") {
+    return window.crypto.randomUUID();
+  }
+  const bytes = new Uint8Array(16);
+  window.crypto.getRandomValues(bytes);
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+function getCheckoutIdempotencyKey() {
+  let storedValue: string | null;
+  try {
+    storedValue = window.localStorage.getItem(CHECKOUT_ATTEMPT_STORAGE_KEY);
+  } catch {
+    throw new Error(
+      "Secure checkout retry protection is unavailable in this browser. Enable site storage and try again."
+    );
+  }
+
+  if (storedValue) {
+    try {
+      const stored: unknown = JSON.parse(storedValue);
+      if (
+        typeof stored === "object" &&
+        stored !== null &&
+        "key" in stored &&
+        typeof stored.key === "string" &&
+        CHECKOUT_IDEMPOTENCY_KEY_PATTERN.test(stored.key)
+      ) {
+        return stored.key;
+      }
+    } catch {
+      // Invalid stored attempts are replaced with a fresh key.
+    }
+  }
+
+  const key = createCheckoutIdempotencyKey();
+  try {
+    window.localStorage.setItem(
+      CHECKOUT_ATTEMPT_STORAGE_KEY,
+      JSON.stringify({ key })
+    );
+  } catch {
+    throw new Error(
+      "Secure checkout retry protection is unavailable in this browser. Enable site storage and try again."
+    );
+  }
+  return key;
+}
+
+function clearCheckoutIdempotencyKey(key: string) {
+  try {
+    const stored = JSON.parse(
+      window.localStorage.getItem(CHECKOUT_ATTEMPT_STORAGE_KEY) || "null"
+    );
+    if (stored?.key === key) {
+      window.localStorage.removeItem(CHECKOUT_ATTEMPT_STORAGE_KEY);
+    }
+  } catch {
+    console.error("Unable to clear the completed checkout attempt from storage.");
+  }
+}
+
 export default function CheckoutPage() {
   const router = useRouter();
   const { items, subtotal, deliveryFee, total, clearCart } = useCart();
@@ -125,9 +195,13 @@ export default function CheckoutPage() {
       }
 
       // 1. Submit order to server database FIRST
+      const idempotencyKey = getCheckoutIdempotencyKey();
       const res = await fetch("/api/orders", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": idempotencyKey,
+        },
         body: JSON.stringify({
           customerName: customerName.trim(),
           customerPhone: customerPhone.trim(),
@@ -148,10 +222,15 @@ export default function CheckoutPage() {
 
       const data = await res.json();
       if (!res.ok) {
+        if (res.status === 409) clearCheckoutIdempotencyKey(idempotencyKey);
         throw new Error(data.error || "Failed to create order");
+      }
+      if (typeof data.order?.orderNumber !== "string") {
+        throw new Error("Order was saved, but its confirmation details could not be loaded.");
       }
 
       // 2. Order is safely saved! Clear guest cart.
+      clearCheckoutIdempotencyKey(idempotencyKey);
       clearCart();
 
       // Show the saved order reference before asking the customer to open WhatsApp.

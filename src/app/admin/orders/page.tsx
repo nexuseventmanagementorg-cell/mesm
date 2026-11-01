@@ -4,6 +4,8 @@ import { getOrders } from "@/lib/db";
 import { formatPrice } from "@/lib/utils";
 import { Search, Eye } from "lucide-react";
 import { AdminQueryFilter } from "@/components/admin/AdminQueryFilter";
+import { verifyAdminAuth } from "@/lib/auth";
+import { redirect } from "next/navigation";
 
 interface AdminOrdersPageProps {
   searchParams: {
@@ -17,6 +19,10 @@ interface AdminOrdersPageProps {
 export const revalidate = 0;
 
 export default async function AdminOrdersPage({ searchParams }: AdminOrdersPageProps) {
+  if (!(await verifyAdminAuth())) {
+    redirect("/admin/login");
+  }
+
   const search = searchParams.search || "";
   const status = searchParams.status || "all";
   const paymentStatus = searchParams.paymentStatus || "all";

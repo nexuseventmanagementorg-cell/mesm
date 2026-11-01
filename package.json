@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "node --test tests/critical-logic.test.mjs"
+    "test": "node --test tests/critical-logic.test.mjs tests/order-flow.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.109.0",

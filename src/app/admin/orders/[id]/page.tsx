@@ -1,10 +1,11 @@
 import React from "react";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { getOrderById } from "@/lib/db";
 import { formatPrice, toWhatsAppPhone } from "@/lib/utils";
 import { AdminOrderStatusUpdater } from "@/components/admin/AdminOrderStatusUpdater";
+import { verifyAdminAuth } from "@/lib/auth";
 import {
   ArrowLeft,
   ShoppingBag,
@@ -24,6 +25,10 @@ interface OrderDetailPageProps {
 }
 
 export default async function OrderDetailPage({ params }: OrderDetailPageProps) {
+  if (!(await verifyAdminAuth())) {
+    redirect("/admin/login");
+  }
+
   const order = await getOrderById(params.id);
   if (!order) {
     notFound();
@@ -107,6 +112,11 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
                     </div>
                     <div className="text-xs">
                       <div className="font-semibold text-brand-mocha">{item.productName}</div>
+                      {item.sku && (
+                        <div className="text-[11px] text-brand-mocha-muted">
+                          SKU: {item.sku}
+                        </div>
+                      )}
                       {item.variationText && (
                         <div className="text-[11px] text-brand-gold-dark font-medium">
                           {item.variationText}
@@ -135,6 +145,12 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
                 <span>Courier Delivery</span>
                 <span className="font-semibold text-brand-mocha">
                   {order.deliveryFee === 0 ? "FREE" : formatPrice(order.deliveryFee)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span>Discount</span>
+                <span className="font-semibold text-brand-mocha">
+                  {formatPrice(order.discount)}
                 </span>
               </div>
               <div className="pt-2 border-t border-brand-mocha/10 flex justify-between text-base font-bold text-brand-mocha">

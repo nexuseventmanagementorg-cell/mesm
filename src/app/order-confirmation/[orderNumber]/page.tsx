@@ -2,12 +2,17 @@ import React from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
+import { cookies } from "next/headers";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
-import { getOrderByNumber, getStoreSettings } from "@/lib/db";
+import { getCustomerOrderConfirmation, getStoreSettings } from "@/lib/db";
 import { formatPrice } from "@/lib/utils";
-import { generateWhatsAppOrderMessage, buildWhatsAppUrl } from "@/lib/whatsapp";
+import {
+  generateCustomerOrderConfirmationMessage,
+  buildWhatsAppUrl,
+} from "@/lib/whatsapp";
 import { OrderConfirmationActions } from "@/components/order/OrderConfirmationActions";
+import { CUSTOMER_ORDER_ACCESS_COOKIE } from "@/lib/customer-order-access.mjs";
 import {
   CheckCircle2,
   MessageCircle,
@@ -25,13 +30,16 @@ interface OrderConfirmationPageProps {
 export const revalidate = 0;
 
 export default async function OrderConfirmationPage({ params }: OrderConfirmationPageProps) {
-  const order = await getOrderByNumber(params.orderNumber);
+  const token = cookies().get(CUSTOMER_ORDER_ACCESS_COOKIE)?.value;
+  const [order, settings] = await Promise.all([
+    getCustomerOrderConfirmation(params.orderNumber, token),
+    getStoreSettings(),
+  ]);
   if (!order) {
     notFound();
   }
 
-  const settings = await getStoreSettings();
-  const whatsappMessage = generateWhatsAppOrderMessage(order);
+  const whatsappMessage = generateCustomerOrderConfirmationMessage(order);
   const whatsappUrl = buildWhatsAppUrl(settings.whatsappNumber, whatsappMessage);
 
   return (
