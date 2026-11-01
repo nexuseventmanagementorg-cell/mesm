@@ -596,21 +596,33 @@ export async function getProducts(params: GetProductsParams = {}): Promise<{
   totalPages: number;
 }> {
   const store = isSupabaseConfigured()
-    ? {
-        settings: initialSettings,
-        categories: await getCategories(true),
-        products: await (async () => {
-          const { data, error } = await getRequiredSupabase()
-            .from("products")
-            .select("*, categories(name)");
-          if (error) {
-            throw new Error(`Unable to load products from Supabase: ${error.message}`);
-          }
-          return (data || []).map((row) => mapProductRow(row));
-        })(),
-        orders: [],
-        reviews: [],
-      }
+    ? await (async () => {
+        const supabase = getRequiredSupabase();
+        const [categoryResult, productResult] = await Promise.all([
+          supabase
+            .from("categories")
+            .select("*")
+            .order("sort_order", { ascending: true }),
+          supabase.from("products").select("*, categories(name)"),
+        ]);
+        if (categoryResult.error) {
+          throw new Error(
+            `Unable to load categories from Supabase: ${categoryResult.error.message}`
+          );
+        }
+        if (productResult.error) {
+          throw new Error(
+            `Unable to load products from Supabase: ${productResult.error.message}`
+          );
+        }
+        return {
+          settings: initialSettings,
+          categories: (categoryResult.data || []).map(mapCategoryRow),
+          products: (productResult.data || []).map((row) => mapProductRow(row)),
+          orders: [],
+          reviews: [],
+        };
+      })()
     : getLocalStore();
   let list = [...store.products];
 

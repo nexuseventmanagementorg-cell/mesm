@@ -115,9 +115,6 @@ export async function generateMetadata({
 }
 
 export default async function ShopPage({ searchParams }: ShopPageProps) {
-  const settings = await getStoreSettings();
-  const categories = await getCategories(false);
-
   const categorySlug = searchParams.category || "all";
   const search = searchParams.search || "";
   const collection = getEditorialCollection(searchParams.collection);
@@ -130,11 +127,19 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
   const page = searchParams.page ? Number(searchParams.page) : 1;
   const limit = 12;
 
+  const needsNewestCandidates =
+    collection === "new-in" || collection === "gift-picks";
+  const needsPopularCandidates = collection === "best-sellers";
+
   const [
+    settings,
+    categories,
     { products, total, totalPages },
     { products: newestCandidates },
     { products: popularCandidates },
   ] = await Promise.all([
+    getStoreSettings(),
+    getCategories(false),
     getProducts({
       categorySlug: categorySlug !== "all" ? categorySlug : undefined,
       search: search || undefined,
@@ -147,8 +152,12 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
       limit,
       status: "published",
     }),
-    getProducts({ status: "published", sortBy: "newest", limit: 100 }),
-    getProducts({ status: "published", sortBy: "popularity", limit: 100 }),
+    needsNewestCandidates
+      ? getProducts({ status: "published", sortBy: "newest", limit: 100 })
+      : Promise.resolve({ products: [] as Product[] }),
+    needsPopularCandidates
+      ? getProducts({ status: "published", sortBy: "popularity", limit: 100 })
+      : Promise.resolve({ products: [] as Product[] }),
   ]);
 
   const activeCategory = categories.find((c) => c.slug === categorySlug);
