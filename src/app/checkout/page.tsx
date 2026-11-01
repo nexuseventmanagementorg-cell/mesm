@@ -154,16 +154,7 @@ export default function CheckoutPage() {
       // 2. Order is safely saved! Clear guest cart.
       clearCart();
 
-      // 3. Open WhatsApp in new tab / window if URL is present
-      if (data.whatsappUrl) {
-        try {
-          window.open(data.whatsappUrl, "_blank");
-        } catch (popupErr) {
-          console.warn("Popup blocked, customer can still click link on confirmation page", popupErr);
-        }
-      }
-
-      // 4. Redirect to order confirmation page
+      // Show the saved order reference before asking the customer to open WhatsApp.
       router.push(`/order-confirmation/${data.order.orderNumber}`);
     } catch (err: any) {
       console.error("Order placement error", err);
@@ -693,12 +684,12 @@ export default function CheckoutPage() {
                     className="w-full py-4 px-6 bg-[#25D366] hover:bg-[#20ba59] text-white rounded-full font-bold text-sm shadow-card flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed group"
                   >
                     <MessageCircle className="w-5 h-5 fill-white text-[#25D366]" />
-                    <span>{isSubmitting ? (paymentProofFile ? "Uploading receipt & placing order..." : "Saving & Opening WhatsApp...") : "Place Order via WhatsApp"}</span>
+                    <span>{isSubmitting ? "Saving Your Order..." : "Place Order"}</span>
                     {!isSubmitting && <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />}
                   </button>
 
                   <p className="text-[11px] text-center text-brand-mocha-muted leading-tight">
-                    Your order will be safely registered in our database first, and WhatsApp will open with your prefilled receipt. Simply press Send to confirm with us.
+                    Your order is registered first. After you receive your order reference, you can confirm it with our team on WhatsApp.
                   </p>
                 </div>
               </div>
