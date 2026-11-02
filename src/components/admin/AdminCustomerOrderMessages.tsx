@@ -42,6 +42,11 @@ export function AdminCustomerOrderMessages({
   const whatsappUrl = selectedPlan && recipient
     ? `https://wa.me/${recipient}?text=${encodeURIComponent(selectedPlan.message)}`
     : "";
+  const groupedPlans = [
+    { label: "MESM Store", plans: plans.filter((plan) => plan.category === "order_received") },
+    { label: "Order status templates", plans: plans.filter((plan) => plan.category === "order_status") },
+    { label: "Payment status templates", plans: plans.filter((plan) => plan.category === "payment_status") },
+  ].filter((group) => group.plans.length > 0);
 
   const handleMarkSent = async () => {
     if (!selectedPlan || !selectedPlan.canSend || openedKey !== selectedPlan.key) return;
@@ -81,8 +86,12 @@ export function AdminCustomerOrderMessages({
           Templates are prefilled for the customer number saved with this order. WhatsApp does not send automatically:
           open the chat, press Send there, then record it below.
         </p>
+        <p className="mt-1 text-[11px] leading-relaxed text-brand-mocha-muted">
+          Browse every order and payment status template below. Only the matching current status can be sent.
+          WhatsApp does not support colored text, so the messages use MESM branding, emoji, and bold emphasis.
+        </p>
         <p className="mt-1 text-[10px] font-semibold text-brand-mocha-muted">
-          Reminder cap: 3 logged MESM messages per order in any 24-hour period.
+          Reminder cap: 3 logged MESM messages per order in any 24-hour period. ✨
         </p>
       </div>
 
@@ -104,25 +113,29 @@ export function AdminCustomerOrderMessages({
             }}
             className="w-full rounded-xl border border-brand-mocha/20 bg-brand-ivory px-3 py-2 text-xs font-semibold text-brand-mocha focus:border-brand-gold focus:outline-none"
           >
-            {plans.map((plan) => (
-              <option key={`${plan.category}-${plan.key}`} value={plan.key}>
-                {plan.category === "payment_status"
-                  ? "Payment"
-                  : plan.category === "order_received"
-                    ? "MESM Store"
-                    : "Order"}: {plan.label}
-              </option>
+            {groupedPlans.map((group) => (
+              <optgroup key={group.label} label={group.label}>
+                {group.plans.map((plan) => (
+                  <option key={`${plan.category}-${plan.key}`} value={plan.key}>
+                    {plan.label}
+                  </option>
+                ))}
+              </optgroup>
             ))}
           </select>
 
           {selectedPlan?.message ? (
-            <div className="rounded-2xl border border-brand-mocha/10 bg-brand-ivory p-3">
-              <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-brand-mocha-muted">
-                Message preview
-              </p>
-              <p className="whitespace-pre-wrap text-xs leading-relaxed text-brand-mocha">
-                {selectedPlan.message}
-              </p>
+            <div className="overflow-hidden rounded-2xl border border-amber-300/70 bg-gradient-to-br from-amber-50 via-white to-rose-50 shadow-sm">
+              <div className="border-b border-amber-200/80 bg-gradient-to-r from-amber-100/80 via-rose-100/70 to-fuchsia-100/60 px-4 py-2">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-amber-950">
+                  ✨ MESM Store message preview
+                </p>
+              </div>
+              <div className="p-4">
+                <p className="whitespace-pre-wrap text-xs leading-relaxed text-stone-800">
+                  {selectedPlan.message}
+                </p>
+              </div>
             </div>
           ) : (
             <p className="rounded-xl border border-brand-mocha/10 bg-brand-ivory p-3 text-xs text-brand-mocha-muted">

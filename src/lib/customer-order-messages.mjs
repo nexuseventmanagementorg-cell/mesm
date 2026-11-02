@@ -58,63 +58,48 @@ function buildMessage(order, templateKey) {
   const name = order.customerName || "there";
   const orderNumber = order.orderNumber;
   const total = formatPkr(order.total);
+  const intro = "✨ *MESM Store* — Elegance, made personal 💎\n";
+  const signOff = "\n\nWith love,\n*Team MESM* 💛";
 
   const templates = {
     order_received_thank_you:
-      `Assalam-o-Alaikum ${name}, thank you for placing order #${orderNumber} with MESM Store. ` +
-      `We have received your order and our team is reviewing it. We will update you shortly. Total: ${total}.`,
+      `${intro}Assalam-o-Alaikum ${name}! 🌸\n\nThank you for choosing MESM and placing order *#${orderNumber}*. We’ve received it and our team is carefully reviewing your order. ✨\n\nYour order total: *${total}*\nWe’ll keep you updated at every step. 💌${signOff}`,
     order_pending_1:
-      `Assalam-o-Alaikum ${name}, we received your MESM order #${orderNumber} (${total}). ` +
-      "Please reply to this message to confirm you would like us to process it.",
+      `${intro}Assalam-o-Alaikum ${name}! 🌷\n\nYour order *#${orderNumber}* for *${total}* is waiting for your confirmation. Please reply *CONFIRM* if you’d like Team MESM to begin preparing your order. 💌${signOff}`,
     order_pending_2:
-      `Assalam-o-Alaikum ${name}, a quick reminder about your pending MESM order #${orderNumber} (${total}). ` +
-      "Please reply if you would like us to proceed.",
+      `${intro}Assalam-o-Alaikum ${name}! 💛\n\nA little reminder from Team MESM: order *#${orderNumber}* (*${total}*) is still awaiting your confirmation. Reply *CONFIRM* and we’ll be delighted to prepare it for you. ✨${signOff}`,
     order_pending_3:
-      `Assalam-o-Alaikum ${name}, this is our last reminder about MESM order #${orderNumber} (${total}), ` +
-      "which is still pending confirmation. Please reply if you would like to continue; your order has not been cancelled.",
+      `${intro}Assalam-o-Alaikum ${name}! 🌸\n\nThis is our final reminder for order *#${orderNumber}* (*${total}*), which is still awaiting confirmation. Your order has *not* been cancelled. Reply *CONFIRM* if you’d still like us to proceed. 💌${signOff}`,
     order_confirmed:
-      `Assalam-o-Alaikum ${name}, your MESM order #${orderNumber} is confirmed. ` +
-      `We will keep you updated as it moves through preparation. Total: ${total}.`,
+      `${intro}Wonderful news, ${name}! 🎉\n\nYour order *#${orderNumber}* is confirmed. Team MESM is getting everything ready with care, and we’ll share your next update soon. ✨\n\nOrder total: *${total}*${signOff}`,
     order_preparing:
-      `Assalam-o-Alaikum ${name}, your MESM order #${orderNumber} is being prepared in our studio. ` +
-      `We will message you when it is ready. Total: ${total}.`,
+      `${intro}Assalam-o-Alaikum ${name}! 🛠️💎\n\nYour order *#${orderNumber}* is now being prepared in the MESM studio. Each detail is coming together with care. We’ll let you know as soon as it’s ready to dispatch. 🌸\n\nOrder total: *${total}*${signOff}`,
     order_ready:
-      `Assalam-o-Alaikum ${name}, your MESM order #${orderNumber} is packed and ready for dispatch. ` +
-      `We will share an update when it is handed to the courier. Total: ${total}.`,
+      `${intro}Exciting update, ${name}! 🎁✨\n\nYour order *#${orderNumber}* is beautifully packed and *ready to dispatch*. We’ll message you when it’s handed to the courier. 💌\n\nOrder total: *${total}*${signOff}`,
     order_shipped:
-      `Assalam-o-Alaikum ${name}, your MESM order #${orderNumber} has been shipped and is out for delivery. ` +
-      `Please keep your contact phone available. Total: ${total}.`,
+      `${intro}It’s on its way, ${name}! 🚚💨\n\nYour MESM order *#${orderNumber}* has been shipped and is with the courier. Please keep your phone available for the delivery call. We hope it brings a little extra sparkle to your day! ✨\n\nOrder total: *${total}*${signOff}`,
     order_delivered:
-      `Assalam-o-Alaikum ${name}, your MESM order #${orderNumber} has been marked as delivered. ` +
-      `We hope you love it. Order total: ${total}. Please reply if you need any help.`,
+      `${intro}Assalam-o-Alaikum ${name}! 💝\n\nYour order *#${orderNumber}* has been marked as delivered. We hope your MESM piece makes you feel as special as you are! ✨ We’d love to hear how you like it—reply here if you need any help. 🌷\n\nOrder total: *${total}*${signOff}`,
     order_cancelled:
-      `Assalam-o-Alaikum ${name}, MESM order #${orderNumber} (${total}) has been cancelled. ` +
-      "Please contact us if you have questions or believe this was a mistake.",
+      `${intro}Assalam-o-Alaikum ${name},\n\nYour MESM order *#${orderNumber}* (*${total}*) has been marked as cancelled. We’re sorry this order didn’t work out. If you have any questions or think this was a mistake, simply reply and Team MESM will be happy to help. 💛${signOff}`,
     payment_cod_due:
-      `Assalam-o-Alaikum ${name}, order #${orderNumber} is set to Cash on Delivery. ` +
-      `Please pay ${total} to the courier when your parcel arrives.`,
+      `${intro}Assalam-o-Alaikum ${name}! 🌸\n\nYour order *#${orderNumber}* is set to *Cash on Delivery*. Please pay *${total}* directly to the courier when your parcel arrives. 📦💵\n\nThank you for shopping with MESM! ✨${signOff}`,
     payment_unpaid_1:
-      `Assalam-o-Alaikum ${name}, payment for MESM order #${orderNumber} (${total}) is still marked unpaid. ` +
-      `Selected method: ${order.paymentMethod}. Please complete payment and share the receipt with us.`,
+      `${intro}Assalam-o-Alaikum ${name}! 💌\n\nPayment for order *#${orderNumber}* (*${total}*) is still marked as unpaid. Your selected method is *${order.paymentMethod}*. Once paid, please share your receipt here so our team can verify it. 🌷${signOff}`,
     payment_unpaid_2:
-      `Assalam-o-Alaikum ${name}, this is a reminder that payment for MESM order #${orderNumber} (${total}) ` +
-      `is still pending. Selected method: ${order.paymentMethod}. Please contact us if you need help.`,
+      `${intro}A friendly reminder, ${name}! 🌼\n\nPayment for MESM order *#${orderNumber}* (*${total}*) is still pending via *${order.paymentMethod}*. If you’ve already paid, please send us your receipt. Need a hand? Just reply—we’re here for you. 💛${signOff}`,
     payment_unpaid_3:
-      `Assalam-o-Alaikum ${name}, our final payment reminder for MESM order #${orderNumber} (${total}). ` +
-      "Payment is still pending; please contact us to confirm how you would like to proceed.",
+      `${intro}Assalam-o-Alaikum ${name}! 🌸\n\nThis is our final payment reminder for order *#${orderNumber}* (*${total}*). Payment is still pending. Please reply to Team MESM to let us know how you’d like to proceed. 💌${signOff}`,
     payment_paid:
-      `Assalam-o-Alaikum ${name}, payment for MESM order #${orderNumber} (${total}) has been verified. Thank you!`,
+      `${intro}Payment confirmed, ${name}! ✅💎\n\nWe’ve verified the payment of *${total}* for order *#${orderNumber}*. Thank you for choosing MESM—we’re taking great care of your order! 🌷${signOff}`,
     payment_refunded:
-      `Assalam-o-Alaikum ${name}, the payment for MESM order #${orderNumber} (${total}) is marked as refunded. ` +
-      "Please contact us if you need help with the refund.",
+      `${intro}Assalam-o-Alaikum ${name},\n\nThe payment of *${total}* for order *#${orderNumber}* has been marked as refunded. Depending on your payment provider, it may take a little time to appear in your account. If you need help, reply here and Team MESM will assist. 💛${signOff}`,
   };
 
   if (templateKey === "payment_awaiting_verification") {
     return order.paymentProofUrl
-      ? `Assalam-o-Alaikum ${name}, we have received the payment details for MESM order #${orderNumber}. ` +
-          "Our team is verifying them. Please do not send the payment again; we will update you shortly."
-      : `Assalam-o-Alaikum ${name}, payment for MESM order #${orderNumber} (${total}) is awaiting verification. ` +
-          "If you have already paid, please share your receipt so our team can verify it.";
+      ? `${intro}Assalam-o-Alaikum ${name}! 🧾✨\n\nWe’ve received your payment details for order *#${orderNumber}* (*${total}*). Team MESM is reviewing them now. Please don’t send the payment again—we’ll update you as soon as verification is complete. 💛${signOff}`
+      : `${intro}Assalam-o-Alaikum ${name}! 🧾✨\n\nPayment for order *#${orderNumber}* (*${total}*) is awaiting verification. If you’ve already paid, please share your receipt here so Team MESM can verify it. 💌${signOff}`;
   }
 
   return templates[templateKey] || "";
@@ -122,7 +107,11 @@ function buildMessage(order, templateKey) {
 
 function makeReceivedThankYouPlan(order, now) {
   const key = "order_received_thank_you";
-  const alreadySent = (order.timeline || []).some((entry) => entry.messageKey === key);
+  const alreadySent = (order.timeline || []).some(
+    (entry) =>
+      entry.messageKey === key ||
+      (typeof entry.messageKey === "string" && entry.messageKey.startsWith("order_pending_"))
+  );
   const limitReached = recentMessageCount(order, now) >= MAX_CUSTOMER_MESSAGES_PER_24_HOURS;
   const cycleStart = latestStateTimestamp(order, "pending");
 
@@ -135,31 +124,16 @@ function makeReceivedThankYouPlan(order, now) {
     dueAt: cycleStart,
     canSend: !alreadySent && !limitReached,
     reason: alreadySent
-      ? "The order received thank-you message has already been logged."
+      ? "The order received message or a pending reminder has already been logged."
       : limitReached
         ? "The order reached the limit of 3 customer messages in 24 hours."
         : "",
   };
 }
 
-function makePlan(order, category, status, now) {
+function makeStatusPlan(order, category, status, now, templateKey, label) {
   const cycleStart = latestStateTimestamp(order, status);
   const sent = currentCycleMessages(order, category, cycleStart);
-  const receivedThankYou = category === "order_status" && status === "pending"
-    ? (order.timeline || []).find(
-        (entry) =>
-          entry.messageKey === "order_received_thank_you" &&
-          entry.messageCycleStart === cycleStart &&
-          Number.isFinite(Date.parse(entry.timestamp))
-      )
-    : undefined;
-  let templateKey;
-  let label;
-  let intervalMs = 0;
-  let maxInCycle = 1;
-  let lastSentAt = sent.length
-    ? Date.parse(sent[sent.length - 1].timestamp)
-    : null;
 
   if (
     category === "payment_status" &&
@@ -169,80 +143,16 @@ function makePlan(order, category, status, now) {
     return {
       category,
       cycleStart,
-      key: "",
-      label: "No payment reminder for a cancelled order",
-      message: "",
+      key: templateKey,
+      label,
+      message: buildMessage(order, templateKey),
       dueAt: null,
       canSend: false,
       reason: "Cancelled orders do not receive payment reminders; use the refund update when applicable.",
     };
   }
 
-  if (category === "order_status" && status === "pending") {
-    const sequence = [
-      ["order_pending_1", "Order received — message 1 of 3", 0],
-      ["order_pending_2", "Pending confirmation reminder — message 2 of 3", 8 * HOUR_MS],
-      ["order_pending_3", "Final pending confirmation reminder — message 3 of 3", 8 * HOUR_MS],
-    ];
-    maxInCycle = sequence.length;
-    const thankYouReplacesFirstReminder = sent.length === 0 && Boolean(receivedThankYou);
-    const step = sequence[sent.length + (thankYouReplacesFirstReminder ? 1 : 0)];
-    if (thankYouReplacesFirstReminder) {
-      lastSentAt = Date.parse(receivedThankYou.timestamp);
-    }
-    if (step) [templateKey, label, intervalMs] = step;
-  } else if (category === "payment_status" && status === "unpaid") {
-    if (order.paymentMethod === "cod") {
-      templateKey = "payment_cod_due";
-      label = "Cash-on-delivery instructions";
-    } else {
-      const sequence = [
-        ["payment_unpaid_1", "Payment reminder — message 1 of 3", 0],
-        ["payment_unpaid_2", "Payment reminder — message 2 of 3", DAY_MS],
-        ["payment_unpaid_3", "Final payment reminder — message 3 of 3", DAY_MS],
-      ];
-      maxInCycle = sequence.length;
-      const step = sequence[sent.length];
-      if (step) [templateKey, label, intervalMs] = step;
-    }
-  } else {
-    const keyByStatus = {
-      confirmed: "order_confirmed",
-      preparing: "order_preparing",
-      ready: "order_ready",
-      shipped: "order_shipped",
-      delivered: "order_delivered",
-      cancelled: "order_cancelled",
-      awaiting_verification: "payment_awaiting_verification",
-      paid: "payment_paid",
-      refunded: "payment_refunded",
-    };
-    templateKey = keyByStatus[status];
-    label = `${category === "order_status" ? "Order" : "Payment"} update — ${
-      (category === "order_status" ? ORDER_STATUS_LABELS : PAYMENT_STATUS_LABELS)[status]
-    }`;
-  }
-
-  if (!templateKey) {
-    return {
-      category,
-      cycleStart,
-      key: "",
-      label: "No further message scheduled",
-      message: "",
-      dueAt: null,
-      canSend: false,
-      reason:
-        category === "order_status"
-          ? "The reminder limit for this status has been reached."
-          : "No additional payment reminder is scheduled for this status.",
-    };
-  }
-
   const duplicate = sent.some((entry) => entry.messageKey === templateKey);
-  const dueAt = lastSentAt === null
-    ? now
-    : lastSentAt + intervalMs;
   const currentStatusMatches =
     (category === "order_status" && order.orderStatus === status) ||
     (category === "payment_status" && order.paymentStatus === status);
@@ -251,15 +161,11 @@ function makePlan(order, category, status, now) {
   const canSend =
     currentStatusMatches &&
     !duplicate &&
-    sent.length < maxInCycle &&
-    dueAt <= now &&
     !limitReached;
 
   let reason = "";
   if (!currentStatusMatches) reason = "This template is not for the order's current status.";
   else if (duplicate) reason = "This message has already been logged for the current status.";
-  else if (sent.length >= maxInCycle) reason = "The reminder limit for this status has been reached.";
-  else if (dueAt > now) reason = `Next reminder is due ${new Date(dueAt).toLocaleString("en-PK")}.`;
   else if (limitReached) reason = "The order reached the limit of 3 customer messages in 24 hours.";
 
   return {
@@ -268,17 +174,142 @@ function makePlan(order, category, status, now) {
     key: templateKey,
     label,
     message: buildMessage(order, templateKey),
-    dueAt: new Date(dueAt).toISOString(),
+    dueAt: cycleStart,
     canSend,
     reason,
   };
 }
 
+function makeSequencePlans(order, category, status, now, sequence, intervalMs) {
+  const cycleStart = latestStateTimestamp(order, status);
+  const sent = currentCycleMessages(order, category, cycleStart);
+  const isPendingOrder = category === "order_status" && status === "pending";
+  const thankYou = isPendingOrder
+    ? (order.timeline || []).find(
+        (entry) =>
+          entry.messageKey === "order_received_thank_you" &&
+          entry.messageCycleStart === cycleStart &&
+          Number.isFinite(Date.parse(entry.timestamp))
+      )
+    : undefined;
+  const completedSlots = sent.length + (thankYou ? 1 : 0);
+  return sequence.map(([templateKey, label], index) => {
+    const alreadySent = sent.some((entry) => entry.messageKey === templateKey);
+    const previousKey = index > 0 ? sequence[index - 1][0] : "";
+    const previousStep = index === 1 && thankYou
+      ? thankYou
+      : sent.find((entry) => entry.messageKey === previousKey);
+    const dueAt = index === 0
+      ? Date.parse(cycleStart)
+      : previousStep
+        ? Date.parse(previousStep.timestamp) + intervalMs
+        : null;
+    const currentStatusMatches =
+      (category === "order_status" && order.orderStatus === status) ||
+      (category === "payment_status" && order.paymentStatus === status);
+    const limitReached = recentMessageCount(order, now) >= MAX_CUSTOMER_MESSAGES_PER_24_HOURS;
+    const isNext = index === completedSlots;
+    const canSend =
+      currentStatusMatches &&
+      isNext &&
+      !alreadySent &&
+      dueAt !== null &&
+      dueAt <= now &&
+      !limitReached;
+
+    let reason = "";
+    if (!currentStatusMatches) reason = `Available when the order is ${ORDER_STATUS_LABELS[status] || PAYMENT_STATUS_LABELS[status]}.`;
+    else if (alreadySent || index < completedSlots) reason = "This reminder has already been sent or replaced by the order-received thank-you message.";
+    else if (index > completedSlots) reason = "Send the earlier reminder first.";
+    else if (dueAt !== null && dueAt > now) reason = `Next reminder is due ${new Date(dueAt).toLocaleString("en-PK")}.`;
+    else if (limitReached) reason = "The order reached the limit of 3 customer messages in 24 hours.";
+
+    return {
+      category,
+      cycleStart,
+      key: templateKey,
+      label,
+      message: buildMessage(order, templateKey),
+      dueAt: dueAt !== null && Number.isFinite(dueAt) ? new Date(dueAt).toISOString() : null,
+      canSend,
+      reason,
+    };
+  });
+}
+
 export function getCustomerMessageOptions(order, now = Date.now()) {
+  const orderPlans = Object.entries(ORDER_STATUS_LABELS).flatMap(([status, statusLabel]) => {
+    if (status === "pending") {
+      return makeSequencePlans(
+        order,
+        "order_status",
+        status,
+        now,
+        [
+          ["order_pending_1", "Confirmation reminder — 1 of 3"],
+          ["order_pending_2", "Confirmation reminder — 2 of 3"],
+          ["order_pending_3", "Final confirmation reminder — 3 of 3"],
+        ],
+        8 * HOUR_MS
+      );
+    }
+
+    return [
+      makeStatusPlan(
+        order,
+        "order_status",
+        status,
+        now,
+        `order_${status}`,
+        `Order update — ${statusLabel}`
+      ),
+    ];
+  });
+  const paymentPlans = Object.entries(PAYMENT_STATUS_LABELS).flatMap(([status, statusLabel]) => {
+    if (status === "unpaid" && order.paymentMethod === "cod") {
+      return [
+        makeStatusPlan(
+          order,
+          "payment_status",
+          status,
+          now,
+          "payment_cod_due",
+          "Cash-on-delivery instructions"
+        ),
+      ];
+    }
+
+    if (status === "unpaid") {
+      return makeSequencePlans(
+        order,
+        "payment_status",
+        status,
+        now,
+        [
+          ["payment_unpaid_1", "Payment reminder — 1 of 3"],
+          ["payment_unpaid_2", "Payment reminder — 2 of 3"],
+          ["payment_unpaid_3", "Final payment reminder — 3 of 3"],
+        ],
+        DAY_MS
+      );
+    }
+
+    return [
+      makeStatusPlan(
+        order,
+        "payment_status",
+        status,
+        now,
+        `payment_${status}`,
+        `Payment update — ${statusLabel}`
+      ),
+    ];
+  });
+
   return [
     makeReceivedThankYouPlan(order, now),
-    makePlan(order, "order_status", order.orderStatus, now),
-    makePlan(order, "payment_status", order.paymentStatus, now),
+    ...orderPlans,
+    ...paymentPlans,
   ];
 }
 

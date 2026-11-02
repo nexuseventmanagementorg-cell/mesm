@@ -286,6 +286,21 @@ test("Customer message templates cover every order and payment status", () => {
   ];
   const paymentStatuses = ["unpaid", "awaiting_verification", "paid", "refunded"];
   const baseTime = Date.parse("2026-11-02T00:00:00.000Z");
+  const orderTemplateKeys = {
+    pending: "order_pending_1",
+    confirmed: "order_confirmed",
+    preparing: "order_preparing",
+    ready: "order_ready",
+    shipped: "order_shipped",
+    delivered: "order_delivered",
+    cancelled: "order_cancelled",
+  };
+  const paymentTemplateKeys = {
+    unpaid: "payment_unpaid_1",
+    awaiting_verification: "payment_awaiting_verification",
+    paid: "payment_paid",
+    refunded: "payment_refunded",
+  };
 
   for (const orderStatus of statuses) {
     const order = {
@@ -307,14 +322,48 @@ test("Customer message templates cover every order and payment status", () => {
       ],
       items: [],
     };
-    const plan = getCustomerMessageOptions(order, baseTime).find(
-      (option) => option.category === "order_status" && option.key !== "order_received_thank_you"
-    );
+    const options = getCustomerMessageOptions(order, baseTime);
+    const plan = options.find((option) => option.key === orderTemplateKeys[orderStatus]);
     assert.ok(plan?.message, `Expected an order template for ${orderStatus}`);
     assert.ok(plan.message.includes("MG-1"));
     assert.ok(plan.message.includes("PKR 1,450"));
     assert.equal(plan.canSend, true);
+    assert.match(plan.message, /MESM Store.*Elegance, made personal/s);
+    assert.match(plan.message, /[✨🌸💎🎉🚚💝]/u);
   }
+
+  const allOptions = getCustomerMessageOptions({
+    orderNumber: "MG-ALL",
+    customerName: "MESM Test",
+    customerPhone: "03001234567",
+    orderStatus: "pending",
+    paymentStatus: "unpaid",
+    paymentMethod: "bank_transfer",
+    createdAt: new Date(baseTime).toISOString(),
+    total: 1450,
+    timeline: [{ status: "pending", timestamp: new Date(baseTime).toISOString() }],
+  }, baseTime);
+  for (const key of [
+    "order_received_thank_you",
+    "order_pending_1",
+    "order_pending_2",
+    "order_pending_3",
+    "order_confirmed",
+    "order_preparing",
+    "order_ready",
+    "order_shipped",
+    "order_delivered",
+    "order_cancelled",
+    "payment_unpaid_1",
+    "payment_unpaid_2",
+    "payment_unpaid_3",
+    "payment_awaiting_verification",
+    "payment_paid",
+    "payment_refunded",
+  ]) {
+    assert.ok(allOptions.some((option) => option.key === key), `Missing template ${key}`);
+  }
+  assert.equal(allOptions.find((option) => option.key === "order_confirmed").canSend, false);
 
   for (const paymentStatus of paymentStatuses) {
     const order = {
@@ -337,7 +386,7 @@ test("Customer message templates cover every order and payment status", () => {
       items: [],
     };
     const plan = getCustomerMessageOptions(order, baseTime).find(
-      (option) => option.category === "payment_status"
+      (option) => option.key === paymentTemplateKeys[paymentStatus]
     );
     assert.ok(plan?.message, `Expected a payment template for ${paymentStatus}`);
     assert.ok(plan.message.includes("MG-1"));
@@ -395,10 +444,10 @@ test("Pending order messages are capped at three and spaced across 24 hours", ()
   appendSent(plan, start + 16 * 60 * 60 * 1000);
 
   plan = getCustomerMessageOptions(order, start + 24 * 60 * 60 * 1000).find(
-    (option) => option.category === "order_status"
+    (option) => option.key === "order_pending_3"
   );
   assert.equal(plan.canSend, false);
-  assert.match(plan.reason, /limit/i);
+  assert.match(plan.reason, /already been sent|limit/i);
 });
 
 test("Payment reminders stop for COD and are spaced for non-COD unpaid orders", () => {
@@ -416,7 +465,11 @@ test("Payment reminders stop for COD and are spaced for non-COD unpaid orders", 
   };
   const getPaymentPlan = (at) =>
     getCustomerMessageOptions(order, at).find(
-      (option) => option.category === "payment_status"
+      (option) => option.key === (
+        order.paymentMethod === "cod"
+          ? "payment_cod_due"
+          : `payment_unpaid_${order.timeline.filter((entry) => entry.messageKey?.startsWith("payment_unpaid_")).length + 1}`
+      )
     );
   const appendSent = (plan, sentAt) => {
     order.timeline.push({
@@ -486,7 +539,8 @@ test("Newly received orders preselect a one-time thank-you message that logs onl
   assert.equal(thankYou.category, "order_received");
   assert.equal(thankYou.canSend, true);
   assert.match(thankYou.label, /thank-you/i);
-  assert.match(thankYou.message, /thank you for placing order #MG-THANKS-1 with MESM Store/i);
+  assert.match(thankYou.message, /thank you for choosing MESM and placing order/i);
+  assert.match(thankYou.message, /#MG-THANKS-1/);
   assert.match(thankYou.message, /PKR 1,450/);
 
   order.timeline.push({
