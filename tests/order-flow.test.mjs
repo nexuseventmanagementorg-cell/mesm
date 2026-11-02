@@ -10,6 +10,10 @@ import {
 import { checkoutOrderSchema } from "../src/lib/order-checkout-validation.mjs";
 import { isPersistedOrderResponse } from "../src/lib/order-rpc-response.mjs";
 import { generateWhatsAppOrderMessage } from "../src/lib/whatsapp-order-message.mjs";
+import {
+  getCustomerMessageOptions,
+  MAX_CUSTOMER_MESSAGES_PER_24_HOURS,
+} from "../src/lib/customer-order-messages.mjs";
 
 const readSource = (path) =>
   readFileSync(new URL(path, import.meta.url), "utf8");
@@ -268,4 +272,237 @@ test("Admin order list and details read persisted JSONB item snapshots privately
   assert.match(detailPage, /order\.discount/);
   assert.match(detailPage, /order\.deliveryAddress/);
   assert.match(detailPage, /order\.paymentStatus/);
+});
+
+test("Customer message templates cover every order and payment status", () => {
+  const statuses = [
+    "pending",
+    "confirmed",
+    "preparing",
+    "ready",
+    "shipped",
+    "delivered",
+    "cancelled",
+  ];
+  const paymentStatuses = ["unpaid", "awaiting_verification", "paid", "refunded"];
+  const baseTime = Date.parse("2026-11-02T00:00:00.000Z");
+
+  for (const orderStatus of statuses) {
+    const order = {
+      id: "ord-1",
+      orderNumber: "MG-1",
+      customerName: "MESM Test",
+      customerPhone: "03001234567",
+      orderStatus,
+      paymentStatus: "paid",
+      paymentMethod: "bank_transfer",
+      createdAt: new Date(baseTime).toISOString(),
+      total: 1450,
+      timeline: [
+        {
+          id: "status",
+          status: orderStatus,
+          timestamp: new Date(baseTime).toISOString(),
+        },
+      ],
+      items: [],
+    };
+    const plan = getCustomerMessageOptions(order, baseTime).find(
+      (option) => option.category === "order_status" && option.key !== "order_received_thank_you"
+    );
+    assert.ok(plan?.message, `Expected an order template for ${orderStatus}`);
+    assert.ok(plan.message.includes("MG-1"));
+    assert.ok(plan.message.includes("PKR 1,450"));
+    assert.equal(plan.canSend, true);
+  }
+
+  for (const paymentStatus of paymentStatuses) {
+    const order = {
+      id: "ord-1",
+      orderNumber: "MG-1",
+      customerName: "MESM Test",
+      customerPhone: "03001234567",
+      orderStatus: "confirmed",
+      paymentStatus,
+      paymentMethod: "bank_transfer",
+      createdAt: new Date(baseTime).toISOString(),
+      total: 1450,
+      timeline: [
+        {
+          id: "payment",
+          status: paymentStatus,
+          timestamp: new Date(baseTime).toISOString(),
+        },
+      ],
+      items: [],
+    };
+    const plan = getCustomerMessageOptions(order, baseTime).find(
+      (option) => option.category === "payment_status"
+    );
+    assert.ok(plan?.message, `Expected a payment template for ${paymentStatus}`);
+    assert.ok(plan.message.includes("MG-1"));
+    assert.equal(plan.canSend, true);
+  }
+});
+
+test("Pending order messages are capped at three and spaced across 24 hours", () => {
+  const start = Date.parse("2026-11-02T00:00:00.000Z");
+  const order = {
+    orderNumber: "MG-1",
+    customerName: "MESM Test",
+    customerPhone: "03001234567",
+    orderStatus: "pending",
+    paymentStatus: "paid",
+    paymentMethod: "bank_transfer",
+    createdAt: new Date(start).toISOString(),
+    total: 1000,
+    timeline: [{ status: "pending", timestamp: new Date(start).toISOString() }],
+  };
+  const appendSent = (plan, sentAt) => {
+    order.timeline.push({
+      status: order.orderStatus,
+      timestamp: new Date(sentAt).toISOString(),
+      messageKey: plan.key,
+      messageCategory: plan.category,
+      messageCycleStart: plan.cycleStart,
+    });
+  };
+
+  assert.equal(MAX_CUSTOMER_MESSAGES_PER_24_HOURS, 3);
+  let plan = getCustomerMessageOptions(order, start).find(
+    (option) => option.key === "order_pending_1"
+  );
+  assert.equal(plan.key, "order_pending_1");
+  assert.equal(plan.canSend, true);
+  appendSent(plan, start);
+
+  plan = getCustomerMessageOptions(order, start + 7 * 60 * 60 * 1000).find(
+    (option) => option.key === "order_pending_2"
+  );
+  assert.equal(plan.key, "order_pending_2");
+  assert.equal(plan.canSend, false);
+  plan = getCustomerMessageOptions(order, start + 8 * 60 * 60 * 1000).find(
+    (option) => option.key === "order_pending_2"
+  );
+  assert.equal(plan.canSend, true);
+  appendSent(plan, start + 8 * 60 * 60 * 1000);
+
+  plan = getCustomerMessageOptions(order, start + 16 * 60 * 60 * 1000).find(
+    (option) => option.key === "order_pending_3"
+  );
+  assert.equal(plan.key, "order_pending_3");
+  assert.equal(plan.canSend, true);
+  appendSent(plan, start + 16 * 60 * 60 * 1000);
+
+  plan = getCustomerMessageOptions(order, start + 24 * 60 * 60 * 1000).find(
+    (option) => option.category === "order_status"
+  );
+  assert.equal(plan.canSend, false);
+  assert.match(plan.reason, /limit/i);
+});
+
+test("Payment reminders stop for COD and are spaced for non-COD unpaid orders", () => {
+  const start = Date.parse("2026-11-02T00:00:00.000Z");
+  const order = {
+    orderNumber: "MG-1",
+    customerName: "MESM Test",
+    customerPhone: "03001234567",
+    orderStatus: "confirmed",
+    paymentStatus: "unpaid",
+    paymentMethod: "bank_transfer",
+    createdAt: new Date(start).toISOString(),
+    total: 1000,
+    timeline: [{ status: "unpaid", timestamp: new Date(start).toISOString() }],
+  };
+  const getPaymentPlan = (at) =>
+    getCustomerMessageOptions(order, at).find(
+      (option) => option.category === "payment_status"
+    );
+  const appendSent = (plan, sentAt) => {
+    order.timeline.push({
+      status: order.paymentStatus,
+      timestamp: new Date(sentAt).toISOString(),
+      messageKey: plan.key,
+      messageCategory: plan.category,
+      messageCycleStart: plan.cycleStart,
+    });
+  };
+
+  let plan = getPaymentPlan(start);
+  assert.equal(plan.key, "payment_unpaid_1");
+  assert.equal(plan.canSend, true);
+  appendSent(plan, start);
+  plan = getPaymentPlan(start + 24 * 60 * 60 * 1000);
+  assert.equal(plan.key, "payment_unpaid_2");
+  assert.equal(plan.canSend, true);
+
+  order.paymentMethod = "cod";
+  order.timeline = [{ status: "unpaid", timestamp: new Date(start).toISOString() }];
+  plan = getPaymentPlan(start);
+  assert.equal(plan.key, "payment_cod_due");
+  assert.equal(plan.canSend, true);
+  assert.match(plan.message, /Cash on Delivery/);
+
+  order.orderStatus = "cancelled";
+  plan = getPaymentPlan(start);
+  assert.equal(plan.canSend, false);
+  assert.match(plan.reason, /cancelled/i);
+});
+
+test("Admin customer-message actions use the saved customer phone and require admin auth", () => {
+  const detailPage = readSource("../src/app/admin/orders/[id]/page.tsx");
+  const messagePanel = readSource("../src/components/admin/AdminCustomerOrderMessages.tsx");
+  const messageRoute = readSource("../src/app/api/orders/[id]/messages/route.ts");
+  const database = readSource("../src/lib/db.ts");
+
+  assert.match(detailPage, /customerPhone=\{order\.customerPhone\}/);
+  assert.match(detailPage, /getCustomerMessageOptions\(order\)/);
+  assert.match(messagePanel, /toWhatsAppPhone\(customerPhone\)/);
+  assert.match(messagePanel, /I sent this message/);
+  assert.match(messagePanel, /router\.refresh\(\)/);
+  assert.match(messageRoute, /verifyAdminAuth\(\)/);
+  assert.match(messageRoute, /recordCustomerMessageSent/);
+  assert.match(database, /messageCycleStart: plan\.cycleStart/);
+  assert.match(database, /\.eq\("updated_at", order\.updatedAt\)/);
+});
+
+test("Newly received orders preselect a one-time thank-you message that logs only once", () => {
+  const now = Date.parse("2026-11-02T00:00:00.000Z");
+  const order = {
+    orderNumber: "MG-THANKS-1",
+    customerName: "MESM Test",
+    customerPhone: "03001234567",
+    orderStatus: "pending",
+    paymentStatus: "unpaid",
+    paymentMethod: "bank_transfer",
+    createdAt: new Date(now).toISOString(),
+    total: 1450,
+    timeline: [{ status: "pending", timestamp: new Date(now).toISOString() }],
+  };
+
+  let options = getCustomerMessageOptions(order, now);
+  let thankYou = options[0];
+  assert.equal(thankYou.key, "order_received_thank_you");
+  assert.equal(thankYou.category, "order_received");
+  assert.equal(thankYou.canSend, true);
+  assert.match(thankYou.label, /thank-you/i);
+  assert.match(thankYou.message, /thank you for placing order #MG-THANKS-1 with MESM Store/i);
+  assert.match(thankYou.message, /PKR 1,450/);
+
+  order.timeline.push({
+    status: "pending",
+    timestamp: new Date(now).toISOString(),
+    messageKey: thankYou.key,
+    messageCategory: thankYou.category,
+    messageCycleStart: thankYou.cycleStart,
+  });
+  options = getCustomerMessageOptions(order, now);
+  const pendingReminder = options.find((option) => option.key === "order_pending_2");
+  assert.equal(pendingReminder.canSend, false);
+  assert.equal(pendingReminder.dueAt, new Date(now + 8 * 60 * 60 * 1000).toISOString());
+
+  options = getCustomerMessageOptions(order, now + 60_000);
+  thankYou = options[0];
+  assert.equal(thankYou.canSend, false);
+  assert.match(thankYou.reason, /already been logged/i);
 });

@@ -3,9 +3,11 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { getOrderById } from "@/lib/db";
-import { formatPrice, toWhatsAppPhone } from "@/lib/utils";
+import { formatPrice } from "@/lib/utils";
 import { AdminOrderStatusUpdater } from "@/components/admin/AdminOrderStatusUpdater";
+import { AdminCustomerOrderMessages } from "@/components/admin/AdminCustomerOrderMessages";
 import { verifyAdminAuth } from "@/lib/auth";
+import { getCustomerMessageOptions } from "@/lib/customer-order-messages.mjs";
 import {
   ArrowLeft,
   ShoppingBag,
@@ -34,10 +36,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
     notFound();
   }
 
-  const customerCleanPhone = toWhatsAppPhone(order.customerPhone);
-  const directWhatsAppUrl = `https://wa.me/${customerCleanPhone}?text=${encodeURIComponent(
-    `Hello ${order.customerName}! We are contacting you from MESM regarding your jewellery order #${order.orderNumber}.`
-  )}`;
+  const customerMessagePlans = getCustomerMessageOptions(order);
 
   return (
     <div className="p-6 sm:p-10 space-y-8 max-w-6xl mx-auto">
@@ -77,13 +76,11 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
 
         {/* Quick Customer WhatsApp Chat */}
         <a
-          href={directWhatsAppUrl}
-          target="_blank"
-          rel="noopener noreferrer"
+          href="#customer-messages"
           className="py-2.5 px-5 bg-[#25D366] hover:bg-[#20ba59] text-white rounded-full text-xs font-bold flex items-center justify-center gap-2 shadow-soft transition-all"
         >
           <MessageCircle className="w-4 h-4 fill-white" />
-          <span>Chat Customer on WhatsApp</span>
+          <span>Customer WhatsApp Messages</span>
         </a>
       </div>
 
@@ -190,6 +187,11 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
         <div className="lg:col-span-5 space-y-6">
           {/* Status & Payment Updater Controls */}
           <AdminOrderStatusUpdater order={order} />
+          <AdminCustomerOrderMessages
+            orderId={order.id}
+            customerPhone={order.customerPhone}
+            plans={customerMessagePlans}
+          />
 
           {/* Customer & Shipping Details */}
           <div className="p-6 bg-brand-warm rounded-3xl border border-brand-mocha/10 shadow-soft space-y-3 text-xs">

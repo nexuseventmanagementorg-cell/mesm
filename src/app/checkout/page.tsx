@@ -457,7 +457,14 @@ export default function CheckoutPage() {
                   Choose Payment Method
                 </h2>
 
-                {availablePaymentMethods.length > 0 ? (
+                {settings === null ? (
+                  <p
+                    role="status"
+                    className="rounded-xl border border-brand-mocha/10 bg-brand-ivory p-4 text-xs text-brand-mocha-muted"
+                  >
+                    Loading available payment methods...
+                  </p>
+                ) : availablePaymentMethods.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {/* EasyPaisa */}
                   {isPaymentMethodAvailable("easypaisa", settings) && (

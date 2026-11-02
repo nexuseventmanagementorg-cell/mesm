@@ -99,6 +99,9 @@ export interface OrderTimelineEvent {
   title: string;
   description?: string;
   actor: 'customer' | 'admin' | 'system';
+  messageKey?: string;
+  messageCategory?: 'order_received' | 'order_status' | 'payment_status';
+  messageCycleStart?: string;
 }
 
 export interface Order {

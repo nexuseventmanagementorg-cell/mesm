@@ -20,6 +20,20 @@ export function AdminOrderStatusUpdater({ order }: AdminOrderStatusUpdaterProps)
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    const updates: {
+      orderStatus?: OrderStatus;
+      paymentStatus?: PaymentStatus;
+      notes?: string;
+    } = {};
+    if (orderStatus !== order.orderStatus) updates.orderStatus = orderStatus;
+    if (paymentStatus !== order.paymentStatus) updates.paymentStatus = paymentStatus;
+    if (notes.trim()) updates.notes = notes.trim();
+
+    if (!updates.orderStatus && !updates.paymentStatus) {
+      setMsg("No status changes to save.");
+      return;
+    }
+
     setIsSaving(true);
     setMsg("");
 
@@ -27,18 +41,14 @@ export function AdminOrderStatusUpdater({ order }: AdminOrderStatusUpdaterProps)
       const res = await fetch(`/api/orders/${order.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          orderStatus,
-          paymentStatus,
-          notes: notes.trim() || undefined,
-        }),
+        body: JSON.stringify(updates),
       });
 
       if (!res.ok) {
         throw new Error("Failed to update status");
       }
 
-      setMsg("Order updated successfully!");
+      setMsg("Order updated. A matching customer message template is now available.");
       setNotes("");
       router.refresh();
       setTimeout(() => setMsg(""), 3000);
