@@ -14,7 +14,7 @@ export async function POST(
     const body = await req.json();
     if (
       typeof body.templateKey !== "string" ||
-      !/^(order_(received_thank_you|pending_[123]|confirmed|preparing|ready|shipped|delivered|cancelled)|payment_(cod_due|unpaid_[123]|awaiting_verification|paid|refunded))$/.test(
+      !/^(order_(received_thank_you|pending_[123]|confirmed|preparing|ready|shipped|delivered|cancelled)|payment_(cod_due|unpaid_[123]|awaiting_verification|paid|refunded|receipt_(received|missing)))$/.test(
         body.templateKey
       )
     ) {

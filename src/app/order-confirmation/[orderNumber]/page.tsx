@@ -3,6 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
+import type { Metadata } from "next";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { getCustomerOrderConfirmation, getStoreSettings } from "@/lib/db";
@@ -12,7 +13,11 @@ import {
   buildWhatsAppUrl,
 } from "@/lib/whatsapp";
 import { OrderConfirmationActions } from "@/components/order/OrderConfirmationActions";
-import { CUSTOMER_ORDER_ACCESS_COOKIE } from "@/lib/customer-order-access.mjs";
+import { CustomerPaymentReceiptUpload } from "@/components/order/CustomerPaymentReceiptUpload";
+import {
+  createCustomerOrderManageToken,
+  CUSTOMER_ORDER_ACCESS_COOKIE,
+} from "@/lib/customer-order-access.mjs";
 import {
   CheckCircle2,
   MessageCircle,
@@ -25,12 +30,23 @@ interface OrderConfirmationPageProps {
   params: {
     orderNumber: string;
   };
+  searchParams?: {
+    access?: string;
+  };
 }
 
 export const revalidate = 0;
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+  referrer: "no-referrer",
+};
 
-export default async function OrderConfirmationPage({ params }: OrderConfirmationPageProps) {
-  const token = cookies().get(CUSTOMER_ORDER_ACCESS_COOKIE)?.value;
+export default async function OrderConfirmationPage({
+  params,
+  searchParams,
+}: OrderConfirmationPageProps) {
+  const token =
+    searchParams?.access || cookies().get(CUSTOMER_ORDER_ACCESS_COOKIE)?.value;
   const [order, settings] = await Promise.all([
     getCustomerOrderConfirmation(params.orderNumber, token),
     getStoreSettings(),
@@ -38,6 +54,7 @@ export default async function OrderConfirmationPage({ params }: OrderConfirmatio
   if (!order) {
     notFound();
   }
+  const paymentReceiptAccessToken = createCustomerOrderManageToken(order.id);
 
   const whatsappMessage = generateCustomerOrderConfirmationMessage(order);
   const whatsappUrl = buildWhatsAppUrl(settings.whatsappNumber, whatsappMessage);
@@ -245,6 +262,14 @@ export default async function OrderConfirmationPage({ params }: OrderConfirmatio
                 </a>
               )}
             </div>
+            {order.paymentMethod !== "cod" && (
+              <CustomerPaymentReceiptUpload
+                orderNumber={order.orderNumber}
+                accessToken={paymentReceiptAccessToken}
+                paymentProofUrl={order.paymentProofUrl}
+                paymentStatus={order.paymentStatus}
+              />
+            )}
 
             <div className="text-center pt-2">
               <Link

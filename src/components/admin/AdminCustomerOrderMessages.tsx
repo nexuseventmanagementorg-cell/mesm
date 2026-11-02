@@ -6,7 +6,7 @@ import { MessageCircle, Send, Clock, Check } from "lucide-react";
 import { toWhatsAppPhone } from "@/lib/utils";
 
 interface CustomerMessagePlan {
-  category: "order_received" | "order_status" | "payment_status";
+  category: "order_received" | "order_status" | "payment_status" | "payment_receipt";
   cycleStart: string;
   key: string;
   label: string;
@@ -39,6 +39,7 @@ export function AdminCustomerOrderMessages({
     { label: "MESM Store", plans: plans.filter((plan) => plan.category === "order_received") },
     { label: "Order status templates", plans: plans.filter((plan) => plan.category === "order_status") },
     { label: "Payment status templates", plans: plans.filter((plan) => plan.category === "payment_status") },
+    { label: "Payment receipt templates", plans: plans.filter((plan) => plan.category === "payment_receipt") },
   ].filter((group) => group.plans.length > 0);
 
   const handleMarkSent = async (plan: CustomerMessagePlan) => {

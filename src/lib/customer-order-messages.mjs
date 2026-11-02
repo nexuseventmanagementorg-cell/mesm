@@ -54,7 +54,7 @@ function recentMessageCount(order, now) {
   }).length;
 }
 
-function buildMessage(order, templateKey) {
+function buildMessage(order, templateKey, orderManageUrl = "") {
   const name = order.customerName || "there";
   const orderNumber = order.orderNumber;
   const total = formatPkr(order.total);
@@ -94,6 +94,10 @@ function buildMessage(order, templateKey) {
       `${intro}Payment confirmed, ${name}! ✅💎\n\nWe’ve verified the payment of *${total}* for order *#${orderNumber}*. Thank you for choosing MESM—we’re taking great care of your order! 🌷${signOff}`,
     payment_refunded:
       `${intro}Assalam-o-Alaikum ${name},\n\nThe payment of *${total}* for order *#${orderNumber}* has been marked as refunded. Depending on your payment provider, it may take a little time to appear in your account. If you need help, reply here and Team MESM will assist. 💛${signOff}`,
+    payment_receipt_received:
+      `${intro}Assalam-o-Alaikum ${name}! 🧾💛\n\nWe’ve received your payment transaction screenshot for order *#${orderNumber}* (*${total}*). Team MESM is reviewing it now. Please don’t make the payment again; we’ll update you once verification is complete. ✨${signOff}`,
+    payment_receipt_missing:
+      `${intro}Assalam-o-Alaikum ${name}! 🧾🌸\n\nWe haven’t received a payment receipt for order *#${orderNumber}* (*${total}*) yet. If you’ve completed the payment, please upload your transaction screenshot securely on your MESM order page:\n${orderManageUrl || "Please contact Team MESM to request your secure order link."}\n\nIf you haven’t paid yet, please complete payment first and then upload the receipt. 💌${signOff}`,
   };
 
   if (templateKey === "payment_awaiting_verification") {
@@ -237,7 +241,11 @@ function makeSequencePlans(order, category, status, now, sequence, intervalMs) {
   });
 }
 
-export function getCustomerMessageOptions(order, now = Date.now()) {
+export function getCustomerMessageOptions(
+  order,
+  now = Date.now(),
+  orderManageUrl = ""
+) {
   const orderPlans = Object.entries(ORDER_STATUS_LABELS).flatMap(([status, statusLabel]) => {
     if (status === "pending") {
       return makeSequencePlans(
@@ -305,14 +313,61 @@ export function getCustomerMessageOptions(order, now = Date.now()) {
       ),
     ];
   });
+  const canSendReceiptMessage =
+    order.paymentMethod !== "cod" &&
+    order.orderStatus !== "cancelled" &&
+    ["unpaid", "awaiting_verification"].includes(order.paymentStatus);
+  const receiptMessagePlan = (hasReceipt) => {
+    const key = hasReceipt
+      ? "payment_receipt_received"
+      : "payment_receipt_missing";
+    const cycleStart = latestStateTimestamp(order, order.paymentStatus);
+    const alreadySent = (order.timeline || []).some(
+      (entry) => entry.messageKey === key && entry.messageCycleStart === cycleStart
+    );
+    const limitReached =
+      recentMessageCount(order, now) >= MAX_CUSTOMER_MESSAGES_PER_24_HOURS;
+    const canSend =
+      canSendReceiptMessage &&
+      Boolean(order.paymentProofUrl) === hasReceipt &&
+      !alreadySent &&
+      !limitReached;
+
+    return {
+      category: "payment_receipt",
+      cycleStart,
+      key,
+      label: hasReceipt
+        ? "Payment receipt received — verification update"
+        : "Payment receipt not received — request upload",
+      message: buildMessage(order, key, orderManageUrl),
+      dueAt: cycleStart,
+      canSend,
+      reason: !canSendReceiptMessage
+        ? order.paymentMethod === "cod"
+          ? "Receipt reminders do not apply to Cash on Delivery."
+          : "Receipt messages are unavailable for cancelled, paid, or refunded orders."
+        : Boolean(order.paymentProofUrl) !== hasReceipt
+          ? hasReceipt
+            ? "No receipt has been uploaded for this order."
+            : "A receipt is already attached to this order."
+          : alreadySent
+            ? "This receipt message has already been logged for this payment status."
+            : limitReached
+              ? "The order reached the limit of 3 customer messages in 24 hours."
+              : "",
+    };
+  };
 
   return [
     makeReceivedThankYouPlan(order, now),
     ...orderPlans,
     ...paymentPlans,
+    receiptMessagePlan(true),
+    receiptMessagePlan(false),
   ];
 }
 
-export function buildCustomerMessage(order, templateKey) {
-  return buildMessage(order, templateKey);
+export function buildCustomerMessage(order, templateKey, orderManageUrl = "") {
+  return buildMessage(order, templateKey, orderManageUrl);
 }

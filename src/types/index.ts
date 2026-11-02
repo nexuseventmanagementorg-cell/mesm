@@ -100,7 +100,7 @@ export interface OrderTimelineEvent {
   description?: string;
   actor: 'customer' | 'admin' | 'system';
   messageKey?: string;
-  messageCategory?: 'order_received' | 'order_status' | 'payment_status';
+  messageCategory?: 'order_received' | 'order_status' | 'payment_status' | 'payment_receipt';
   messageCycleStart?: string;
 }
 

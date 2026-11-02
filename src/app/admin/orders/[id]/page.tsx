@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { getOrderById } from "@/lib/db";
 import { formatPrice } from "@/lib/utils";
+import { getCustomerOrderManageUrl } from "@/lib/customer-order-access.mjs";
 import { AdminOrderStatusUpdater } from "@/components/admin/AdminOrderStatusUpdater";
 import { AdminCustomerOrderMessages } from "@/components/admin/AdminCustomerOrderMessages";
 import { verifyAdminAuth } from "@/lib/auth";
@@ -36,7 +37,12 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
     notFound();
   }
 
-  const customerMessagePlans = getCustomerMessageOptions(order);
+  const customerManageUrl = getCustomerOrderManageUrl(order.id, order.orderNumber);
+  const customerMessagePlans = getCustomerMessageOptions(
+    order,
+    Date.now(),
+    customerManageUrl
+  );
 
   return (
     <div className="p-6 sm:p-10 space-y-8 max-w-6xl mx-auto">

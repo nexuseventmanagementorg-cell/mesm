@@ -2,10 +2,13 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
+  createCustomerOrderManageToken,
+  getCustomerOrderManageUrl,
   getCustomerOrderConfirmation,
   hashCustomerOrderAccessToken,
   persistCustomerAccessHashInTimeline,
   recoverCustomerAccessHashFromTimeline,
+  verifyCustomerOrderManageToken,
 } from "../src/lib/customer-order-access.mjs";
 import { checkoutOrderSchema } from "../src/lib/order-checkout-validation.mjs";
 import { isPersistedOrderResponse } from "../src/lib/order-rpc-response.mjs";
@@ -252,6 +255,69 @@ test("Customer confirmation requires a token and maps only persisted order data"
     Object.hasOwn(recovered.timeline[0], "__mesm_customer_access_token_hash"),
     false
   );
+});
+
+test("Customer manage links are signed, expire, and open only their own order", () => {
+  const previousSecret = process.env.ADMIN_SESSION_SECRET;
+  const previousSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+  process.env.ADMIN_SESSION_SECRET = "test-only-customer-order-secret";
+  process.env.NEXT_PUBLIC_SITE_URL = "https://mesm-gems.vercel.app";
+  try {
+    const now = Date.parse("2026-11-02T00:00:00.000Z");
+    const expiresAt = Math.floor(now / 1000) + 60 * 60;
+    const token = createCustomerOrderManageToken("ord-1", expiresAt);
+    const manageUrl = new URL(getCustomerOrderManageUrl("ord-1", "MG-1"));
+    assert.equal(manageUrl.origin, "https://mesm-gems.vercel.app");
+    assert.equal(manageUrl.pathname, "/order-confirmation/MG-1");
+    assert.equal(
+      verifyCustomerOrderManageToken("ord-1", manageUrl.searchParams.get("access"), Date.now()),
+      true
+    );
+    const order = {
+      id: "ord-1",
+      orderNumber: "MG-1",
+      customerAccessTokenHash: "0".repeat(64),
+      customerName: "MESM Test",
+      items: [],
+      timeline: [],
+    };
+
+    assert.equal(verifyCustomerOrderManageToken("ord-1", token, now), true);
+    assert.equal(verifyCustomerOrderManageToken("ord-2", token, now), false);
+    assert.equal(verifyCustomerOrderManageToken("ord-1", `${token}x`, now), false);
+    assert.equal(
+      verifyCustomerOrderManageToken("ord-1", token, now + 60 * 60 * 1000),
+      false
+    );
+    assert.deepEqual(
+      getCustomerOrderConfirmation(order, "MG-1", token, now),
+      {
+        id: "ord-1",
+        orderNumber: "MG-1",
+        createdAt: undefined,
+        orderStatus: undefined,
+        paymentStatus: undefined,
+        paymentMethod: undefined,
+        paymentProofUrl: undefined,
+        customerName: "MESM Test",
+        customerPhone: undefined,
+        customerCity: undefined,
+        deliveryAddress: undefined,
+        deliveryInstructions: undefined,
+        giftMessage: undefined,
+        items: [],
+        subtotal: undefined,
+        deliveryFee: undefined,
+        discount: undefined,
+        total: undefined,
+      }
+    );
+  } finally {
+    if (previousSecret === undefined) delete process.env.ADMIN_SESSION_SECRET;
+    else process.env.ADMIN_SESSION_SECRET = previousSecret;
+    if (previousSiteUrl === undefined) delete process.env.NEXT_PUBLIC_SITE_URL;
+    else process.env.NEXT_PUBLIC_SITE_URL = previousSiteUrl;
+  }
 });
 
 test("Admin order list and details read persisted JSONB item snapshots privately", () => {
@@ -509,7 +575,7 @@ test("Admin customer-message actions use the saved customer phone and require ad
   const database = readSource("../src/lib/db.ts");
 
   assert.match(detailPage, /customerPhone=\{order\.customerPhone\}/);
-  assert.match(detailPage, /getCustomerMessageOptions\(order\)/);
+  assert.match(detailPage, /getCustomerMessageOptions\(\s*order,/);
   assert.match(messagePanel, /toWhatsAppPhone\(customerPhone\)/);
   assert.match(messagePanel, /I sent this message/);
   assert.match(messagePanel, /router\.refresh\(\)/);
@@ -519,6 +585,75 @@ test("Admin customer-message actions use the saved customer phone and require ad
   assert.match(messagePanel, /Send to WhatsApp/);
   assert.match(messagePanel, /Preview message/);
   assert.match(database, /messageCycleStart: plan\.cycleStart/);
+  assert.match(database, /\.eq\("updated_at", order\.updatedAt\)/);
+});
+
+test("Payment receipt templates distinguish received vs missing and include secure order page link", () => {
+  const now = Date.parse("2026-11-02T00:00:00.000Z");
+  const order = {
+    id: "ord-receipt",
+    orderNumber: "MG-RECEIPT-1",
+    customerName: "MESM Test",
+    customerPhone: "03001234567",
+    orderStatus: "pending",
+    paymentStatus: "awaiting_verification",
+    paymentMethod: "easypaisa",
+    createdAt: new Date(now - 60 * 60 * 1000).toISOString(),
+    total: 1450,
+    timeline: [
+      {
+        status: "pending",
+        timestamp: new Date(now - 60 * 60 * 1000).toISOString(),
+      },
+      {
+        status: "awaiting_verification",
+        timestamp: new Date(now).toISOString(),
+      },
+    ],
+  };
+  const receiptPageUrl =
+    "https://mesm-gems.vercel.app/order-confirmation/MG-RECEIPT-1?access=signed-token";
+  let plans = getCustomerMessageOptions(order, now, receiptPageUrl);
+  let missing = plans.find((plan) => plan.key === "payment_receipt_missing");
+  let received = plans.find((plan) => plan.key === "payment_receipt_received");
+
+  assert.equal(missing.canSend, true);
+  assert.match(missing.message, /haven.t received a payment receipt/i);
+  assert.ok(missing.message.includes(receiptPageUrl));
+  assert.equal(received.canSend, false);
+
+  order.paymentProofUrl =
+    "https://esdonuxggfyyostvcmfl.supabase.co/storage/v1/object/public/meems-gems-media/payment-proofs/receipt.png";
+  plans = getCustomerMessageOptions(order, now, receiptPageUrl);
+  missing = plans.find((plan) => plan.key === "payment_receipt_missing");
+  received = plans.find((plan) => plan.key === "payment_receipt_received");
+  assert.equal(missing.canSend, false);
+  assert.equal(received.canSend, true);
+  assert.match(received.message, /We.ve received your payment transaction screenshot/i);
+
+  order.paymentMethod = "cod";
+  plans = getCustomerMessageOptions(order, now, receiptPageUrl);
+  assert.equal(
+    plans.find((plan) => plan.key === "payment_receipt_received").canSend,
+    false
+  );
+});
+
+test("Customer order page provides the secure receipt upload flow", () => {
+  const page = readSource("../src/app/order-confirmation/[orderNumber]/page.tsx");
+  const uploadComponent = readSource("../src/components/order/CustomerPaymentReceiptUpload.tsx");
+  const uploadRoute = readSource("../src/app/api/customer-orders/[orderNumber]/payment-proof/route.ts");
+  const database = readSource("../src/lib/db.ts");
+
+  assert.match(page, /searchParams\?\.access/);
+  assert.match(page, /createCustomerOrderManageToken\(order\.id\)/);
+  assert.match(page, /<CustomerPaymentReceiptUpload/);
+  assert.match(uploadComponent, /\/api\/payment-proof/);
+  assert.match(uploadComponent, /\/api\/customer-orders\/\$\{encodeURIComponent\(orderNumber\)\}\/payment-proof/);
+  assert.match(uploadRoute, /submitCustomerPaymentProof/);
+  assert.match(uploadRoute, /isValidReceiptUrl/);
+  assert.match(database, /verifyCustomerOrderManageToken\(order\.id, accessToken\)/);
+  assert.match(database, /payment_status: "awaiting_verification"/);
   assert.match(database, /\.eq\("updated_at", order\.updatedAt\)/);
 });
 

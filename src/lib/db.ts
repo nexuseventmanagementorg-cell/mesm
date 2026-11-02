@@ -28,6 +28,7 @@ import {
   getCustomerOrderConfirmation as projectCustomerOrderConfirmation,
   persistCustomerAccessHashInTimeline,
   recoverCustomerAccessHashFromTimeline,
+  verifyCustomerOrderManageToken,
 } from "./customer-order-access.mjs";
 import { isPersistedOrderResponse } from "./order-rpc-response.mjs";
 import { getCustomerMessageOptions } from "./customer-order-messages.mjs";
@@ -1151,7 +1152,9 @@ export async function recordCustomerMessageSent(
   const event: OrderTimelineEvent = {
     id: `tl-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     timestamp: now,
-    status: plan.category === "payment_status" ? order.paymentStatus : order.orderStatus,
+    status: ["payment_status", "payment_receipt"].includes(plan.category)
+      ? order.paymentStatus
+      : order.orderStatus,
     title: `WhatsApp message sent: ${plan.label}`,
     description: `Admin confirmed sending the prepared message to ${order.customerPhone}.`,
     actor: "admin",
@@ -1240,6 +1243,73 @@ export async function getCustomerOrderConfirmation(
     orderNumber,
     token
   ) as CustomerOrderConfirmation | null;
+}
+
+export async function submitCustomerPaymentProof(
+  orderNumber: string,
+  accessToken: string,
+  paymentProofUrl: string
+): Promise<Order> {
+  const order = await getOrderByNumber(orderNumber);
+  if (!order || !verifyCustomerOrderManageToken(order.id, accessToken)) {
+    throw new Error("This order upload link is invalid or has expired.");
+  }
+  if (
+    order.paymentMethod === "cod" ||
+    order.orderStatus === "cancelled" ||
+    !["unpaid", "awaiting_verification"].includes(order.paymentStatus)
+  ) {
+    throw new Error("A payment receipt cannot be uploaded for this order status.");
+  }
+
+  const now = new Date().toISOString();
+  const event: OrderTimelineEvent = {
+    id: `tl-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    timestamp: now,
+    status: "awaiting_verification",
+    title: "Customer uploaded a payment receipt",
+    description: "Payment transaction screenshot received for verification.",
+    actor: "customer",
+  };
+  const timeline = [...order.timeline, event];
+
+  if (isSupabaseConfigured()) {
+    const storedTimeline = order.customerAccessTokenHash
+      ? persistCustomerAccessHashInTimeline(timeline, order.customerAccessTokenHash)
+      : timeline;
+    const { data, error } = await getRequiredSupabase()
+      .from("orders")
+      .update({
+        payment_proof_url: paymentProofUrl,
+        payment_status: "awaiting_verification",
+        timeline: storedTimeline,
+        updated_at: now,
+      })
+      .eq("id", order.id)
+      .eq("updated_at", order.updatedAt)
+      .select("*")
+      .maybeSingle();
+    if (error) {
+      throw new Error(`Unable to attach payment receipt: ${error.message}`);
+    }
+    if (!data) {
+      throw new Error("The order changed while uploading the receipt. Refresh and try again.");
+    }
+    return mapOrderRow(data);
+  }
+
+  const store = getLocalStore();
+  const current = store.orders.find((entry) => entry.id === order.id);
+  if (!current) throw new Error("Order not found");
+  if (current.updatedAt !== order.updatedAt) {
+    throw new Error("The order changed while uploading the receipt. Refresh and try again.");
+  }
+  current.paymentProofUrl = paymentProofUrl;
+  current.paymentStatus = "awaiting_verification";
+  current.timeline.push(event);
+  current.updatedAt = now;
+  saveDataToFile(store);
+  return current;
 }
 
 /**
