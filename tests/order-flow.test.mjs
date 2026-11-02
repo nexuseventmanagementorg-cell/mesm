@@ -260,8 +260,10 @@ test("Customer confirmation requires a token and maps only persisted order data"
 test("Customer manage links are signed, expire, and open only their own order", () => {
   const previousSecret = process.env.ADMIN_SESSION_SECRET;
   const previousSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+  const previousVercelProductionUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL;
   process.env.ADMIN_SESSION_SECRET = "test-only-customer-order-secret";
-  process.env.NEXT_PUBLIC_SITE_URL = "https://mesm-gems.vercel.app";
+  process.env.NEXT_PUBLIC_SITE_URL = "https://mesm-five.vercel.app";
+  process.env.VERCEL_PROJECT_PRODUCTION_URL = "mesm-five.vercel.app";
   try {
     const now = Date.parse("2026-11-02T00:00:00.000Z");
     const expiresAt = Math.floor(now / 1000) + 60 * 60;
@@ -317,6 +319,11 @@ test("Customer manage links are signed, expire, and open only their own order", 
     else process.env.ADMIN_SESSION_SECRET = previousSecret;
     if (previousSiteUrl === undefined) delete process.env.NEXT_PUBLIC_SITE_URL;
     else process.env.NEXT_PUBLIC_SITE_URL = previousSiteUrl;
+    if (previousVercelProductionUrl === undefined) {
+      delete process.env.VERCEL_PROJECT_PRODUCTION_URL;
+    } else {
+      process.env.VERCEL_PROJECT_PRODUCTION_URL = previousVercelProductionUrl;
+    }
   }
 });
 

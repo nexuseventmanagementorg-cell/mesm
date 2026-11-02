@@ -6,6 +6,7 @@ export const CUSTOMER_ORDER_MANAGE_LINK_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 export const CUSTOMER_ACCESS_HASH_FIELD = "__mesm_customer_access_token_hash";
 const TOKEN_PATTERN = /^([A-Za-z0-9_-]{43})\.(\d{10})$/;
 const MANAGE_TOKEN_PATTERN = /^(\d{10})\.([A-Za-z0-9_-]{43})$/;
+const CUSTOMER_ORDER_PUBLIC_ORIGIN = "https://mesm-gems.vercel.app";
 
 function getCustomerOrderSecret() {
   return (
@@ -61,20 +62,10 @@ export function verifyCustomerOrderManageToken(
 }
 
 export function getCustomerOrderManageUrl(orderId, orderNumber) {
-  const configuredOrigin =
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    (process.env.VERCEL_PROJECT_PRODUCTION_URL
-      ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
-      : "https://mesm-gems.vercel.app");
-  const origin = new URL(configuredOrigin);
-  if (!["http:", "https:"].includes(origin.protocol) || origin.username || origin.password) {
-    throw new Error("The customer order page origin is invalid.");
-  }
-
   const token = createCustomerOrderManageToken(orderId);
   const url = new URL(
     `/order-confirmation/${encodeURIComponent(orderNumber)}`,
-    origin.origin
+    CUSTOMER_ORDER_PUBLIC_ORIGIN
   );
   url.searchParams.set("access", token);
   return url.toString();
