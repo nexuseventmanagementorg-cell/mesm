@@ -515,8 +515,36 @@ test("Admin customer-message actions use the saved customer phone and require ad
   assert.match(messagePanel, /router\.refresh\(\)/);
   assert.match(messageRoute, /verifyAdminAuth\(\)/);
   assert.match(messageRoute, /recordCustomerMessageSent/);
+  assert.match(messagePanel, /group\.plans\.map\(\(plan\) =>/);
+  assert.match(messagePanel, /Send to WhatsApp/);
+  assert.match(messagePanel, /Preview message/);
   assert.match(database, /messageCycleStart: plan\.cycleStart/);
   assert.match(database, /\.eq\("updated_at", order\.updatedAt\)/);
+});
+
+test("Cancelled orders have an enabled WhatsApp cancellation template", () => {
+  const now = Date.parse("2026-11-02T00:00:00.000Z");
+  const order = {
+    orderNumber: "MG-CANCEL-1",
+    customerName: "MESM Test",
+    customerPhone: "03001234567",
+    orderStatus: "cancelled",
+    paymentStatus: "unpaid",
+    paymentMethod: "bank_transfer",
+    createdAt: new Date(now - 60 * 60 * 1000).toISOString(),
+    total: 1450,
+    timeline: [
+      { status: "pending", timestamp: new Date(now - 60 * 60 * 1000).toISOString() },
+      { status: "cancelled", timestamp: new Date(now).toISOString() },
+    ],
+  };
+  const cancellation = getCustomerMessageOptions(order, now).find(
+    (option) => option.key === "order_cancelled"
+  );
+
+  assert.ok(cancellation);
+  assert.equal(cancellation.canSend, true);
+  assert.match(cancellation.message, /marked as cancelled/i);
 });
 
 test("Newly received orders preselect a one-time thank-you message that logs only once", () => {
